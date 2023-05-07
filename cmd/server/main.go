@@ -1,16 +1,21 @@
 package main
 
 import (
-	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/handlers"
-	"net/http"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/server"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/update/`, handlers.UpdateMetricHandler)
-
-	err := http.ListenAndServe(":8080", mux)
-	if err != nil {
-		panic(err)
+	metricServer := server.MetricsServer{
+		MetricsStore: storage.NewMetrics(),
 	}
+
+	go metricServer.StartListener()
+
+	signalChanel := make(chan os.Signal, 1)
+	signal.Notify(signalChanel, syscall.SIGINT, syscall.SIGTERM)
+	<-signalChanel
 }
