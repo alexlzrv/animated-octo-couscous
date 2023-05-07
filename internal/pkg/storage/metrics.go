@@ -39,13 +39,11 @@ func (m *Metrics) UpdateCounterMetric(metricName string, metricValue Counter) {
 
 func (m *Metrics) GetGaugeMetric(metricName string) (Gauge, bool) {
 	metric, ok := m.GaugeMetrics[metricName]
-
 	return metric, ok
 }
 
 func (m *Metrics) GetCounterMetric(metricName string) (Counter, bool) {
 	metric, ok := m.CounterMetrics[metricName]
-
 	return metric, ok
 }
 
