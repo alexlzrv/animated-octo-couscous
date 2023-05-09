@@ -1,7 +1,6 @@
 package server
 
 import (
-	_ "embed"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
@@ -10,13 +9,17 @@ import (
 	"strconv"
 )
 
-//go:embed html/index.html
-var templateFile string
+var tmpl = template.Must(template.New("index.html").Parse("html/index.gohtml"))
+
+const (
+	metricType = "metricType"
+	metricName = "metricName"
+)
 
 func RegisterHandlers(mux *chi.Mux, metric storage.Metric) {
-	mux.Route("/update/{metricType}/{metricName}/{metricValue}", updateMetricHandler(metric))
-	mux.Route("/value/{metricType}/{metricName}", getMetricHandler(metric))
 	mux.Route("/", getAllMetricsHandler(metric))
+	mux.Route("/value/{metricType}/{metricName}", getMetricHandler(metric))
+	mux.Route("/update/{metricType}/{metricName}/{metricValue}", updateMetricHandler(metric))
 }
 
 func getAllMetricsHandler(metric storage.Metric) func(r chi.Router) {
@@ -30,14 +33,9 @@ func getAllMetricsHandler(metric storage.Metric) func(r chi.Router) {
 				Counter: metric.GetCounterMetrics(),
 			}
 
-			tmpl, err := template.New("index.html").Parse(templateFile)
+			err := tmpl.Execute(w, metricsData)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			err = tmpl.Execute(w, metricsData)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		})
@@ -47,11 +45,12 @@ func getAllMetricsHandler(metric storage.Metric) func(r chi.Router) {
 func getMetricHandler(metric storage.Metric) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			metricType := chi.URLParam(r, "metricType")
-			metricName := chi.URLParam(r, "metricName")
+			metricType := chi.URLParam(r, metricType)
+			metricName := chi.URLParam(r, metricName)
 
 			var ok bool
 			var metricData string
+
 			switch metricType {
 			case storage.CounterMetricName:
 				var metricDataCounter storage.Counter
@@ -79,8 +78,8 @@ func getMetricHandler(metric storage.Metric) func(r chi.Router) {
 func updateMetricHandler(metric storage.Metric) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
-			metricType := chi.URLParam(r, "metricType")
-			metricName := chi.URLParam(r, "metricName")
+			metricType := chi.URLParam(r, metricType)
+			metricName := chi.URLParam(r, metricName)
 			metricValue := chi.URLParam(r, "metricValue")
 
 			var err error
