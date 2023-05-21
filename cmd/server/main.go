@@ -13,6 +13,5 @@ func main() {
 	metricServer := server.MetricsServer{
 		MetricsStore: storage.NewMetrics(),
 	}
-
 	metricServer.StartListener(cfg)
 }
