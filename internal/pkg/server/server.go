@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/logger"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/server/config"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
 	"log"
@@ -14,7 +15,10 @@ type MetricsServer struct {
 
 func (s *MetricsServer) StartListener(c *config.ServerConfig) {
 	mux := chi.NewRouter()
+	mux.Use(logger.LoggingMiddleware)
+
 	RegisterHandlers(mux, s.MetricsStore)
+
 	err := http.ListenAndServe(c.ServerAddress, mux)
 
 	if err != nil {
