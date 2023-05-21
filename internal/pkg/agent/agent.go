@@ -3,7 +3,7 @@ package agent
 import (
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/agent/config"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
-	"log"
+	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,7 +11,7 @@ import (
 )
 
 func StartClient(c *config.AgentConfig) {
-
+	logrus.Info("Agent is running...")
 	pollInterval := time.Duration(c.PollInterval) * time.Second     //тесты не проходят с duration
 	reportInterval := time.Duration(c.ReportInterval) * time.Second //тесты не проходят с duration
 
@@ -20,18 +20,18 @@ func StartClient(c *config.AgentConfig) {
 	reportTicker := time.NewTicker(reportInterval)
 	defer reportTicker.Stop()
 
-	m := storage.NewMetrics()
+	metric := storage.NewMetrics()
 
 	go func() {
 		for {
 			select {
 			case <-pollTicker.C:
-				if err := m.UpdateMetrics(); err != nil {
-					log.Fatal(err)
+				if err := storage.UpdateMetrics(metric); err != nil {
+					logrus.Errorf("Error update metrics %s", err)
 				}
 			case <-reportTicker.C:
-				if err := m.SendMetrics(c.ServerAddress); err != nil {
-					log.Fatal(err)
+				if err := SendMetrics(metric, c.ServerAddress); err != nil {
+					logrus.Errorf("Error send metrics %s", err)
 				}
 			}
 		}
