@@ -106,6 +106,7 @@ func updateMetricJSON(metricStorage storage.Storage) func(w http.ResponseWriter,
 func getAllMetricsHandler(metricStorage storage.Storage) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
 			metricsData := metricStorage.GetMetrics()
 
 			err := tmpl.Execute(w, metricsData)

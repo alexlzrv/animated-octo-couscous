@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
 	"github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"net/http"
 )
 
@@ -31,12 +31,21 @@ func createPostRequest(url string, metric *metrics.Metrics) error {
 		return fmt.Errorf("error encoding metric %s", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err = gz.Write(body); err != nil {
+		return fmt.Errorf("error %s", err)
+	}
+
+	gz.Close()
+
+	req, err := http.NewRequest(http.MethodPost, url, &buf)
 	if err != nil {
 		return fmt.Errorf("error send request %s", err)
 	}
-	log.Println(req)
+
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

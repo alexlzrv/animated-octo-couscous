@@ -33,6 +33,9 @@ func StartClient(c *config.AgentConfig) {
 				if err := SendMetrics(metric, c.ServerAddress); err != nil {
 					logrus.Errorf("Error send metrics %s", err)
 				}
+				if err := metric.ResetCounterMetric("PollCount"); err != nil {
+					logrus.Errorf("Error reset metrics %s", err)
+				}
 			}
 		}
 	}()
