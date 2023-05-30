@@ -7,7 +7,5 @@ import (
 
 func main() {
 	cfg := config.NewServerConfig()
-	config.Init(cfg)
-
 	server.StartListener(cfg)
 }

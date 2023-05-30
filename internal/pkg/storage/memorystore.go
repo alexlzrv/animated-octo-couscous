@@ -1,21 +1,35 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 	"math/rand"
+	"os"
 	"runtime"
 	"sync"
+	"time"
 )
 
 type MemoryStore struct {
-	metrics map[string]*metrics.Metrics
-	lock    sync.Mutex
+	metrics         map[string]*metrics.Metrics
+	fileStoragePath string
+	storeInterval   time.Duration
+	tickerDone      chan struct{}
+	lock            sync.Mutex
 }
 
 func NewMetrics() *MemoryStore {
 	return &MemoryStore{
 		metrics: make(map[string]*metrics.Metrics),
+	}
+}
+
+func NewMetricsFile(file string, storeInterval time.Duration) *MemoryStore {
+	return &MemoryStore{
+		metrics:         make(map[string]*metrics.Metrics),
+		fileStoragePath: file,
+		storeInterval:   storeInterval,
 	}
 }
 
@@ -87,6 +101,46 @@ func (m *MemoryStore) ResetCounterMetric(metricName string) error {
 			MType: metrics.CounterMetricName,
 			Delta: &zero,
 		}
+	}
+	return nil
+}
+
+func (m *MemoryStore) LoadMetrics(filePath string) error {
+	if filePath != "" {
+		file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		defer file.Close()
+
+		jsonDecoder := json.NewDecoder(file)
+
+		return jsonDecoder.Decode(&m.metrics)
+	}
+	return nil
+}
+
+func (m *MemoryStore) SaveMetrics(filePath string) error {
+	if filePath != "" {
+		file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		encoder := json.NewEncoder(file)
+
+		return encoder.Encode(&m.metrics)
+	}
+	return nil
+}
+
+func (m *MemoryStore) Close() error {
+	if m.tickerDone != nil {
+		m.tickerDone <- struct{}{}
 	}
 	return nil
 }

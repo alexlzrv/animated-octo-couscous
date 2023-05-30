@@ -2,8 +2,7 @@ package config
 
 import (
 	"flag"
-	"os"
-	"strconv"
+	"github.com/caarlos0/env/v6"
 )
 
 type AgentConfig struct {
@@ -13,22 +12,18 @@ type AgentConfig struct {
 }
 
 func NewAgentConfig() *AgentConfig {
-	return &AgentConfig{}
+	cfg := AgentConfig{}
+	cfg.Init()
+
+	if err := env.Parse(&cfg); err != nil {
+		return &AgentConfig{}
+	}
+	return &cfg
 }
 
-func Init(c *AgentConfig) {
+func (c *AgentConfig) Init() {
 	flag.StringVar(&c.ServerAddress, "a", "localhost:8080", "Start server address (default - :8080)")
 	flag.IntVar(&c.ReportInterval, "r", 10, "Interval of report metric")
 	flag.IntVar(&c.PollInterval, "p", 2, "Interval of poll metric")
 	flag.Parse()
-
-	if envServerAddress := os.Getenv("ADDRESS"); envServerAddress != "" {
-		c.ServerAddress = envServerAddress
-	}
-	if envReportInterval := os.Getenv("REPORT_INTERVAL"); envReportInterval != "" {
-		c.ReportInterval, _ = strconv.Atoi(envReportInterval)
-	}
-	if envPollInterval := os.Getenv("POLL_INTERVAL"); envPollInterval != "" {
-		c.PollInterval, _ = strconv.Atoi(envPollInterval)
-	}
 }
