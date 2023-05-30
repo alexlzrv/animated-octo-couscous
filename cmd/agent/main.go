@@ -7,6 +7,5 @@ import (
 
 func main() {
 	cfg := config.NewAgentConfig()
-	config.Init(cfg)
 	agent.StartClient(cfg)
 }

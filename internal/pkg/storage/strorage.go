@@ -8,4 +8,6 @@ type Storage interface {
 	UpdateGaugeMetric(name string, value metrics.Gauge) error
 	GetMetric(name string) (*metrics.Metrics, bool)
 	GetMetrics() map[string]*metrics.Metrics
+	LoadMetrics(filePath string) error
+	SaveMetrics(filePath string) error
 }
