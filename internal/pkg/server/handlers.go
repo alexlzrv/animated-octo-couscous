@@ -2,16 +2,22 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
-	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
 	"github.com/sirupsen/logrus"
 	"html/template"
 	"io"
 	"net/http"
 	"strconv"
 )
+
+type StorageHandlers interface {
+	UpdateCounterMetric(name string, value metrics.Counter) error
+	ResetCounterMetric(name string) error
+	UpdateGaugeMetric(name string, value metrics.Gauge) error
+	GetMetric(name string) (*metrics.Metrics, bool)
+	GetMetrics() map[string]*metrics.Metrics
+}
 
 var tmpl = template.Must(template.New("index.html").Parse("html/index.gohtml"))
 
@@ -20,27 +26,27 @@ const (
 	metricName = "metricName"
 )
 
-func RegisterHandlers(mux *chi.Mux, metricStorage storage.Storage) {
-	mux.Route("/", getAllMetricsHandler(metricStorage))
-	mux.Route("/value/", getMetricHandler(metricStorage))
-	mux.Route("/update/", updateHandler(metricStorage))
+func RegisterHandlers(mux *chi.Mux, s StorageHandlers) {
+	mux.Route("/", getAllMetricsHandler(s))
+	mux.Route("/value/", getMetricHandler(s))
+	mux.Route("/update/", updateHandler(s))
 }
 
-func updateHandler(metricStorage storage.Storage) func(r chi.Router) {
+func updateHandler(s StorageHandlers) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Post("/", updateMetricJSON(metricStorage))
-		r.Post("/{metricType}/{metricName}/{metricValue}", updateMetricHandler(metricStorage))
+		r.Post("/", updateMetricJSON(s))
+		r.Post("/{metricType}/{metricName}/{metricValue}", updateMetricHandler(s))
 	}
 }
 
-func getMetricHandler(metricStorage storage.Storage) func(r chi.Router) {
+func getMetricHandler(s StorageHandlers) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Post("/", getMetricJSON(metricStorage))
-		r.Get("/{metricType}/{metricName}", getMetric(metricStorage))
+		r.Post("/", getMetricJSON(s))
+		r.Get("/{metricType}/{metricName}", getMetric(s))
 	}
 }
 
-func getMetricJSON(metricStorage storage.Storage) func(w http.ResponseWriter, r *http.Request) {
+func getMetricJSON(s StorageHandlers) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var metric *metrics.Metrics
 		body, err := io.ReadAll(r.Body)
@@ -55,7 +61,7 @@ func getMetricJSON(metricStorage storage.Storage) func(w http.ResponseWriter, r 
 			return
 		}
 
-		m, ok := metricStorage.GetMetric(metric.ID)
+		m, ok := s.GetMetric(metric.ID)
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			logrus.Errorf("Metric not found: %s", metric.ID)
@@ -76,7 +82,7 @@ func getMetricJSON(metricStorage storage.Storage) func(w http.ResponseWriter, r 
 	}
 }
 
-func updateMetricJSON(metricStorage storage.Storage) func(w http.ResponseWriter, r *http.Request) {
+func updateMetricJSON(s StorageHandlers) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var metric metrics.Metrics
 		body, err := io.ReadAll(r.Body)
@@ -91,9 +97,9 @@ func updateMetricJSON(metricStorage storage.Storage) func(w http.ResponseWriter,
 
 		switch metric.MType {
 		case metrics.CounterMetricName:
-			err = metricStorage.UpdateCounterMetric(metric.ID, *metric.Delta)
+			err = s.UpdateCounterMetric(metric.ID, *metric.Delta)
 		case metrics.GaugeMetricName:
-			err = metricStorage.UpdateGaugeMetric(metric.ID, *metric.Value)
+			err = s.UpdateGaugeMetric(metric.ID, *metric.Value)
 		default:
 			http.Error(w, metric.MType, http.StatusNotImplemented)
 		}
@@ -103,11 +109,11 @@ func updateMetricJSON(metricStorage storage.Storage) func(w http.ResponseWriter,
 	}
 }
 
-func getAllMetricsHandler(metricStorage storage.Storage) func(r chi.Router) {
+func getAllMetricsHandler(s StorageHandlers) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
-			metricsData := metricStorage.GetMetrics()
+			metricsData := s.GetMetrics()
 
 			err := tmpl.Execute(w, metricsData)
 			if err != nil {
@@ -118,7 +124,7 @@ func getAllMetricsHandler(metricStorage storage.Storage) func(r chi.Router) {
 	}
 }
 
-func getMetric(metricStorage storage.Storage) func(w http.ResponseWriter, r *http.Request) {
+func getMetric(s StorageHandlers) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType := chi.URLParam(r, metricType)
 		metricName := chi.URLParam(r, metricName)
@@ -127,17 +133,17 @@ func getMetric(metricStorage storage.Storage) func(w http.ResponseWriter, r *htt
 
 		switch metricType {
 		case metrics.CounterMetricName:
-			metricDataCounter, ok := metricStorage.GetMetric(metricName)
+			metricDataCounter, ok := s.GetMetric(metricName)
 			if ok {
-				metricData = fmt.Sprintf("%d", *metricDataCounter.Delta)
+				metricData = strconv.FormatInt(int64(*metricDataCounter.Delta), 10)
 			} else {
 				http.Error(w, metricName, http.StatusNotFound)
 				return
 			}
 		case metrics.GaugeMetricName:
-			metricDataGauge, ok := metricStorage.GetMetric(metricName)
+			metricDataGauge, ok := s.GetMetric(metricName)
 			if ok {
-				metricData = fmt.Sprintf("%g", *metricDataGauge.Value)
+				metricData = strconv.FormatFloat(float64(*metricDataGauge.Value), 'f', -1, 64)
 			} else {
 				http.Error(w, metricName, http.StatusNotFound)
 				return
@@ -149,11 +155,13 @@ func getMetric(metricStorage storage.Storage) func(w http.ResponseWriter, r *htt
 		_, err := w.Write([]byte(metricData))
 		if err != nil {
 			http.Error(w, metricName, http.StatusInternalServerError)
+			logrus.Errorf("error %v", err)
+			return
 		}
 	}
 }
 
-func updateMetricHandler(metricStorage storage.Storage) func(w http.ResponseWriter, r *http.Request) {
+func updateMetricHandler(s StorageHandlers) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType := chi.URLParam(r, metricType)
 		metricName := chi.URLParam(r, metricName)
@@ -161,9 +169,9 @@ func updateMetricHandler(metricStorage storage.Storage) func(w http.ResponseWrit
 		var err error
 		switch metricType {
 		case metrics.CounterMetricName:
-			err = updateCounterMetric(metricName, metricValue, metricStorage)
+			err = updateCounterMetric(metricName, metricValue, s)
 		case metrics.GaugeMetricName:
-			err = updateGaugeMetric(metricName, metricValue, metricStorage)
+			err = updateGaugeMetric(metricName, metricValue, s)
 		default:
 			http.Error(w, metricType, http.StatusNotImplemented)
 		}
@@ -173,19 +181,19 @@ func updateMetricHandler(metricStorage storage.Storage) func(w http.ResponseWrit
 	}
 }
 
-func updateGaugeMetric(metricName string, valueMetric string, metricsStore storage.Storage) error {
+func updateGaugeMetric(metricName string, valueMetric string, s StorageHandlers) error {
 	val, err := strconv.ParseFloat(valueMetric, 64)
 	if err == nil {
-		return metricsStore.UpdateGaugeMetric(metricName, metrics.Gauge(val))
+		return s.UpdateGaugeMetric(metricName, metrics.Gauge(val))
 	}
 
 	return err
 }
 
-func updateCounterMetric(metricName string, valueMetric string, metricsStore storage.Storage) error {
+func updateCounterMetric(metricName string, valueMetric string, s StorageHandlers) error {
 	val, err := strconv.ParseInt(valueMetric, 10, 64)
 	if err == nil {
-		return metricsStore.UpdateCounterMetric(metricName, metrics.Counter(val))
+		return s.UpdateCounterMetric(metricName, metrics.Counter(val))
 	}
 
 	return err
