@@ -7,9 +7,15 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
+
+type Memory interface {
+	UpdateGaugeMetric(name string, value metrics.Gauge) error
+	UpdateCounterMetric(name string, value metrics.Counter) error
+}
 
 type MemoryStore struct {
 	metrics         map[string]*metrics.Metrics
@@ -42,7 +48,7 @@ func (m *MemoryStore) UpdateGaugeMetric(metricName string, metricValue metrics.G
 	case ok && currentMetric.Value != nil:
 		*(currentMetric.Value) = metricValue
 	case ok && currentMetric.Value == nil:
-		return fmt.Errorf("%s %s", metricName, currentMetric.MType)
+		return fmt.Errorf("mismatch metric type %s:%s", metricName, currentMetric.MType)
 	default:
 		m.metrics[metricName] = &metrics.Metrics{
 			ID:    metricName,
@@ -62,7 +68,7 @@ func (m *MemoryStore) UpdateCounterMetric(metricName string, metricValue metrics
 	case ok && currentMetric.Delta != nil:
 		*(currentMetric.Delta) += metricValue
 	case ok && currentMetric.Delta == nil:
-		return fmt.Errorf("%s %s", metricName, currentMetric.MType)
+		return fmt.Errorf("mismatch metric type %s:%s", metricName, currentMetric.MType)
 	default:
 		m.metrics[metricName] = &metrics.Metrics{
 			ID:    metricName,
@@ -94,7 +100,7 @@ func (m *MemoryStore) ResetCounterMetric(metricName string) error {
 	case ok && currentMetric.Delta != nil:
 		*(currentMetric.Delta) = zero
 	case ok && currentMetric.Delta == nil:
-		return fmt.Errorf("%s %s", metricName, currentMetric.MType)
+		return fmt.Errorf("mismatch metric type %s:%s", metricName, currentMetric.MType)
 	default:
 		m.metrics[metricName] = &metrics.Metrics{
 			ID:    metricName,
@@ -106,36 +112,34 @@ func (m *MemoryStore) ResetCounterMetric(metricName string) error {
 }
 
 func (m *MemoryStore) LoadMetrics(filePath string) error {
-	if filePath != "" {
-		file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
-		if err != nil {
-			if os.IsNotExist(err) {
-				return nil
-			}
-			return err
-		}
-		defer file.Close()
-
-		jsonDecoder := json.NewDecoder(file)
-
-		return jsonDecoder.Decode(&m.metrics)
+	if filePath == "" {
+		return nil
 	}
-	return nil
+	file, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	defer file.Close()
+
+	jsonDecoder := json.NewDecoder(file)
+	return jsonDecoder.Decode(&m.metrics)
 }
 
 func (m *MemoryStore) SaveMetrics(filePath string) error {
-	if filePath != "" {
-		file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0666)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		encoder := json.NewEncoder(file)
-
-		return encoder.Encode(&m.metrics)
+	if filePath == "" {
+		return nil
 	}
-	return nil
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	return encoder.Encode(&m.metrics)
 }
 
 func (m *MemoryStore) Close() error {
@@ -145,41 +149,136 @@ func (m *MemoryStore) Close() error {
 	return nil
 }
 
-func UpdateMetrics(m Storage) error {
+func UpdateMetrics(m Memory) error {
 	var metricsStats runtime.MemStats
 	runtime.ReadMemStats(&metricsStats)
+	var errorsSlice []string
 
-	_ = m.UpdateGaugeMetric("Alloc", metrics.Gauge(metricsStats.Alloc))
-	_ = m.UpdateGaugeMetric("BuckHashSys", metrics.Gauge(metricsStats.BuckHashSys))
-	_ = m.UpdateGaugeMetric("BuckHashSys", metrics.Gauge(metricsStats.BuckHashSys))
-	_ = m.UpdateGaugeMetric("Frees", metrics.Gauge(metricsStats.Frees))
-	_ = m.UpdateGaugeMetric("GCCPUFraction", metrics.Gauge(metricsStats.GCCPUFraction))
-	_ = m.UpdateGaugeMetric("GCSys", metrics.Gauge(metricsStats.GCSys))
-	_ = m.UpdateGaugeMetric("HeapAlloc", metrics.Gauge(metricsStats.HeapAlloc))
-	_ = m.UpdateGaugeMetric("HeapIdle", metrics.Gauge(metricsStats.HeapIdle))
-	_ = m.UpdateGaugeMetric("HeapInuse", metrics.Gauge(metricsStats.HeapInuse))
-	_ = m.UpdateGaugeMetric("HeapObjects", metrics.Gauge(metricsStats.HeapObjects))
-	_ = m.UpdateGaugeMetric("HeapReleased", metrics.Gauge(metricsStats.HeapReleased))
-	_ = m.UpdateGaugeMetric("HeapSys", metrics.Gauge(metricsStats.HeapSys))
-	_ = m.UpdateGaugeMetric("LastGC", metrics.Gauge(metricsStats.LastGC))
-	_ = m.UpdateGaugeMetric("Lookups", metrics.Gauge(metricsStats.Lookups))
-	_ = m.UpdateGaugeMetric("MCacheInuse", metrics.Gauge(metricsStats.MCacheInuse))
-	_ = m.UpdateGaugeMetric("MCacheSys", metrics.Gauge(metricsStats.MCacheSys))
-	_ = m.UpdateGaugeMetric("MSpanInuse", metrics.Gauge(metricsStats.MSpanInuse))
-	_ = m.UpdateGaugeMetric("MSpanSys", metrics.Gauge(metricsStats.MSpanSys))
-	_ = m.UpdateGaugeMetric("Mallocs", metrics.Gauge(metricsStats.Mallocs))
-	_ = m.UpdateGaugeMetric("NextGC", metrics.Gauge(metricsStats.NextGC))
-	_ = m.UpdateGaugeMetric("NumForcedGC", metrics.Gauge(metricsStats.NumForcedGC))
-	_ = m.UpdateGaugeMetric("NumGC", metrics.Gauge(metricsStats.NumGC))
-	_ = m.UpdateGaugeMetric("OtherSys", metrics.Gauge(metricsStats.OtherSys))
-	_ = m.UpdateGaugeMetric("PauseTotalNs", metrics.Gauge(metricsStats.PauseTotalNs))
-	_ = m.UpdateGaugeMetric("StackInuse", metrics.Gauge(metricsStats.StackInuse))
-	_ = m.UpdateGaugeMetric("StackSys", metrics.Gauge(metricsStats.StackSys))
-	_ = m.UpdateGaugeMetric("Sys", metrics.Gauge(metricsStats.Sys))
-	_ = m.UpdateGaugeMetric("TotalAlloc", metrics.Gauge(metricsStats.TotalAlloc))
-	_ = m.UpdateGaugeMetric("RandomValue", metrics.Gauge(rand.Float64()))
+	err := m.UpdateGaugeMetric("Alloc", metrics.Gauge(metricsStats.Alloc))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("BuckHashSys", metrics.Gauge(metricsStats.BuckHashSys))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("BuckHashSys", metrics.Gauge(metricsStats.BuckHashSys))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("Frees", metrics.Gauge(metricsStats.Frees))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("GCCPUFraction", metrics.Gauge(metricsStats.GCCPUFraction))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("GCSys", metrics.Gauge(metricsStats.GCSys))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("HeapAlloc", metrics.Gauge(metricsStats.HeapAlloc))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("HeapIdle", metrics.Gauge(metricsStats.HeapIdle))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("HeapInuse", metrics.Gauge(metricsStats.HeapInuse))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("HeapObjects", metrics.Gauge(metricsStats.HeapObjects))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("HeapReleased", metrics.Gauge(metricsStats.HeapReleased))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("HeapSys", metrics.Gauge(metricsStats.HeapSys))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("LastGC", metrics.Gauge(metricsStats.LastGC))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("Lookups", metrics.Gauge(metricsStats.Lookups))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("MCacheInuse", metrics.Gauge(metricsStats.MCacheInuse))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("MCacheSys", metrics.Gauge(metricsStats.MCacheSys))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("MSpanInuse", metrics.Gauge(metricsStats.MSpanInuse))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("MSpanSys", metrics.Gauge(metricsStats.MSpanSys))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("Mallocs", metrics.Gauge(metricsStats.Mallocs))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("NextGC", metrics.Gauge(metricsStats.NextGC))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("NumForcedGC", metrics.Gauge(metricsStats.NumForcedGC))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("NumGC", metrics.Gauge(metricsStats.NumGC))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("OtherSys", metrics.Gauge(metricsStats.OtherSys))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("PauseTotalNs", metrics.Gauge(metricsStats.PauseTotalNs))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("StackInuse", metrics.Gauge(metricsStats.StackInuse))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("StackSys", metrics.Gauge(metricsStats.StackSys))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("Sys", metrics.Gauge(metricsStats.Sys))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("TotalAlloc", metrics.Gauge(metricsStats.TotalAlloc))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
+	err = m.UpdateGaugeMetric("RandomValue", metrics.Gauge(rand.Float64()))
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
 
-	_ = m.UpdateCounterMetric("PollCount", 1)
+	err = m.UpdateCounterMetric("PollCount", 1)
+	if err != nil {
+		errorsSlice = append(errorsSlice, err.Error())
+	}
 
-	return nil
+	if len(errorsSlice) > 0 {
+		return fmt.Errorf(strings.Join(errorsSlice, "\n"))
+	} else {
+		return nil
+	}
 }

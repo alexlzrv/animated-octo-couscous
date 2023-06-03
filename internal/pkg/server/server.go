@@ -25,7 +25,7 @@ func StartListener(c *config.ServerConfig) {
 
 	if c.Restore {
 		if err := metricStore.LoadMetrics(c.FileStoragePath); err != nil {
-			logrus.Errorf("Error update metric from file %s", err)
+			logrus.Errorf("Error update metric from file %v", err)
 		}
 	}
 
@@ -36,7 +36,7 @@ func StartListener(c *config.ServerConfig) {
 			for range storeInterval.C {
 				err := metricStore.SaveMetrics(c.FileStoragePath)
 				if err != nil {
-					logrus.Errorf("Error save metric from file %s", err)
+					logrus.Errorf("Error save metric from file %v", err)
 				}
 			}
 		}()

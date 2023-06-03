@@ -13,7 +13,7 @@ type AgentConfig struct {
 
 func NewAgentConfig() *AgentConfig {
 	cfg := AgentConfig{}
-	cfg.Init()
+	cfg.init()
 
 	if err := env.Parse(&cfg); err != nil {
 		return &AgentConfig{}
@@ -21,7 +21,7 @@ func NewAgentConfig() *AgentConfig {
 	return &cfg
 }
 
-func (c *AgentConfig) Init() {
+func (c *AgentConfig) init() {
 	flag.StringVar(&c.ServerAddress, "a", "localhost:8080", "Start server address (default - :8080)")
 	flag.IntVar(&c.ReportInterval, "r", 10, "Interval of report metric")
 	flag.IntVar(&c.PollInterval, "p", 2, "Interval of poll metric")

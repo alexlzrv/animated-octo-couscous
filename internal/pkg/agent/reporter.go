@@ -7,19 +7,20 @@ import (
 	"errors"
 	"fmt"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
-	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
-	"github.com/sirupsen/logrus"
-	"io"
 	"net/http"
 )
 
-func SendMetrics(m storage.Storage, serverAddress string) error {
+type StorageReport interface {
+	GetMetrics() map[string]*metrics.Metrics
+}
+
+func SendMetrics(s StorageReport, serverAddress string) error {
 	url := fmt.Sprintf("http://%s/update/", serverAddress)
 
-	for _, v := range m.GetMetrics() {
+	for _, v := range s.GetMetrics() {
 		err := createPostRequest(url, v)
 		if err != nil {
-			return fmt.Errorf("error create post request %s", err)
+			return fmt.Errorf("error create post request %v", err)
 		}
 	}
 	return nil
@@ -28,7 +29,7 @@ func SendMetrics(m storage.Storage, serverAddress string) error {
 func createPostRequest(url string, metric *metrics.Metrics) error {
 	body, err := json.Marshal(metric)
 	if err != nil {
-		return fmt.Errorf("error encoding metric %s", err)
+		return fmt.Errorf("error encoding metric %v", err)
 	}
 
 	var buf bytes.Buffer
@@ -41,7 +42,7 @@ func createPostRequest(url string, metric *metrics.Metrics) error {
 
 	req, err := http.NewRequest(http.MethodPost, url, &buf)
 	if err != nil {
-		return fmt.Errorf("error send request %s", err)
+		return fmt.Errorf("error send request %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -49,15 +50,13 @@ func createPostRequest(url string, metric *metrics.Metrics) error {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error client %s", err)
+		return fmt.Errorf("error client %v", err)
 	}
 
-	io.Copy(io.Discard, resp.Body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		logrus.Infof("%v", metric)
-		return errors.New(resp.Status)
+		return errors.New("status code not 200")
 	}
 
 	return nil

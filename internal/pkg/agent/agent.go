@@ -27,14 +27,14 @@ func StartClient(c *config.AgentConfig) {
 			select {
 			case <-pollTicker.C:
 				if err := storage.UpdateMetrics(metric); err != nil {
-					logrus.Errorf("Error update metrics %s", err)
+					logrus.Errorf("Error update metrics %v", err)
 				}
 			case <-reportTicker.C:
 				if err := SendMetrics(metric, c.ServerAddress); err != nil {
-					logrus.Errorf("Error send metrics %s", err)
+					logrus.Errorf("Error send metrics %v", err)
 				}
 				if err := metric.ResetCounterMetric("PollCount"); err != nil {
-					logrus.Errorf("Error reset metrics %s", err)
+					logrus.Errorf("Error reset metrics %v", err)
 				}
 			}
 		}
