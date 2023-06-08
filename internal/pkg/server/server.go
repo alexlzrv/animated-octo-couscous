@@ -1,8 +1,10 @@
 package server
 
 import (
+	"database/sql"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/compress"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/logger"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/server/config"
@@ -21,10 +23,16 @@ func StartListener(c *config.ServerConfig) {
 		compress.CompressMiddleware,
 	)
 
-	RegisterHandlers(mux, metricStore)
+	db, err := sql.Open("pgx", c.DatabaseDSN)
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
+	defer db.Close()
+
+	RegisterHandlers(mux, metricStore, db)
 
 	if c.Restore {
-		if err := metricStore.LoadMetrics(c.FileStoragePath); err != nil {
+		if err = metricStore.LoadMetrics(c.FileStoragePath); err != nil {
 			logrus.Errorf("Error update metric from file %v", err)
 		}
 	}
@@ -34,7 +42,7 @@ func StartListener(c *config.ServerConfig) {
 		defer storeInterval.Stop()
 		go func() {
 			for range storeInterval.C {
-				err := metricStore.SaveMetrics(c.FileStoragePath)
+				err = metricStore.SaveMetrics(c.FileStoragePath)
 				if err != nil {
 					logrus.Errorf("Error save metric from file %v", err)
 				}
@@ -43,7 +51,7 @@ func StartListener(c *config.ServerConfig) {
 	}
 
 	logrus.Info("Server is running...")
-	err := http.ListenAndServe(c.ServerAddress, mux)
+	err = http.ListenAndServe(c.ServerAddress, mux)
 
 	if err != nil {
 		logrus.Fatal(err)

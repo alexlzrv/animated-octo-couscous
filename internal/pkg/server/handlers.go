@@ -1,8 +1,10 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 	"github.com/sirupsen/logrus"
 	"html/template"
@@ -26,10 +28,11 @@ const (
 	metricName = "metricName"
 )
 
-func RegisterHandlers(mux *chi.Mux, s StorageHandlers) {
+func RegisterHandlers(mux *chi.Mux, s StorageHandlers, db *sql.DB) {
 	mux.Route("/", getAllMetricsHandler(s))
 	mux.Route("/value/", getMetricHandler(s))
 	mux.Route("/update/", updateHandler(s))
+	mux.Route("/ping", pingHandler(db))
 }
 
 func updateHandler(s StorageHandlers) func(r chi.Router) {
@@ -43,6 +46,23 @@ func getMetricHandler(s StorageHandlers) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/", getMetricJSON(s))
 		r.Get("/{metricType}/{metricName}", getMetric(s))
+	}
+}
+
+func pingHandler(db *sql.DB) func(r chi.Router) {
+	return func(r chi.Router) {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			if db == nil {
+				http.Error(w, "dsn is empty", http.StatusInternalServerError)
+			}
+
+			err := db.Ping()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+
+			w.WriteHeader(http.StatusOK)
+		})
 	}
 }
 
