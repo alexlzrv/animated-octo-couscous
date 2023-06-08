@@ -10,6 +10,7 @@ type ServerConfig struct {
 	StoreInterval   int    `env:"STORE_INTERVAL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
+	DatabaseDSN     string `env:"DATABASE_DSN "`
 }
 
 const (
@@ -33,5 +34,6 @@ func (c *ServerConfig) Init() {
 	flag.IntVar(&c.StoreInterval, "i", storeIntervalDefault, "Store interval")
 	flag.StringVar(&c.FileStoragePath, "f", filePathDefault, "File storage path")
 	flag.BoolVar(&c.Restore, "r", true, "Restore")
+	flag.StringVar(&c.DatabaseDSN, "d", "", "Connect database string")
 	flag.Parse()
 }

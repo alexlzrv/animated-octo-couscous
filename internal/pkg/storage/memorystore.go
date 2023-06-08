@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
@@ -23,6 +24,7 @@ type MemoryStore struct {
 	storeInterval   time.Duration
 	tickerDone      chan struct{}
 	lock            sync.Mutex
+	db              *sql.DB
 }
 
 func NewMetrics() *MemoryStore {
