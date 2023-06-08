@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/compress"
@@ -20,6 +21,13 @@ func StartListener(c *config.ServerConfig) {
 		logger.LoggingMiddleware,
 		compress.CompressMiddleware,
 	)
+
+	db, err := sql.Open("pgx", c.DatabaseDSN)
+	if err != nil {
+		logrus.Errorf(err.Error())
+	}
+
+	err = db.Ping()
 
 	RegisterHandlers(mux, metricStore)
 
@@ -43,7 +51,7 @@ func StartListener(c *config.ServerConfig) {
 	}
 
 	logrus.Info("Server is running...")
-	err := http.ListenAndServe(c.ServerAddress, mux)
+	err = http.ListenAndServe(c.ServerAddress, mux)
 
 	if err != nil {
 		logrus.Fatal(err)

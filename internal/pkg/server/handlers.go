@@ -17,6 +17,7 @@ type StorageHandlers interface {
 	UpdateGaugeMetric(name string, value metrics.Gauge) error
 	GetMetric(name string) (*metrics.Metrics, bool)
 	GetMetrics() map[string]*metrics.Metrics
+	Ping() error
 }
 
 var tmpl = template.Must(template.New("index.html").Parse("html/index.gohtml"))
@@ -30,6 +31,7 @@ func RegisterHandlers(mux *chi.Mux, s StorageHandlers) {
 	mux.Route("/", getAllMetricsHandler(s))
 	mux.Route("/value/", getMetricHandler(s))
 	mux.Route("/update/", updateHandler(s))
+	mux.Route("/ping", pingHandler(s))
 }
 
 func updateHandler(s StorageHandlers) func(r chi.Router) {
@@ -119,6 +121,17 @@ func getAllMetricsHandler(s StorageHandlers) func(r chi.Router) {
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
+			}
+		})
+	}
+}
+
+func pingHandler(s StorageHandlers) func(r chi.Router) {
+	return func(r chi.Router) {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			err := s.Ping()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		})
 	}

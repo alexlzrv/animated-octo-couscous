@@ -149,6 +149,10 @@ func (m *MemoryStore) Close() error {
 	return nil
 }
 
+func (m *MemoryStore) Ping() error {
+	return nil
+}
+
 func UpdateMetrics(m Memory) error {
 	var metricsStats runtime.MemStats
 	runtime.ReadMemStats(&metricsStats)
