@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"github.com/caarlos0/env/v6"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
 )
 
 type ServerConfig struct {
@@ -11,6 +12,8 @@ type ServerConfig struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN "`
+
+	MetricStore storage.Store
 }
 
 const (

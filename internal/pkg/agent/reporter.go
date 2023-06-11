@@ -3,22 +3,29 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
+	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
 type StorageReport interface {
-	GetMetrics() map[string]*metrics.Metrics
+	GetMetrics(ctx context.Context) (map[string]*metrics.Metrics, error)
 }
 
-func SendMetrics(s StorageReport, serverAddress string) error {
+func SendMetrics(ctx context.Context, s StorageReport, serverAddress string) error {
 	url := fmt.Sprintf("http://%s/update/", serverAddress)
 
-	for _, v := range s.GetMetrics() {
-		err := createPostRequest(url, v)
+	metricMap, err := s.GetMetrics(ctx)
+	if err != nil {
+		logrus.Errorf("Error with get metrics: %v", err)
+	}
+
+	for _, v := range metricMap {
+		err = createPostRequest(url, v)
 		if err != nil {
 			return fmt.Errorf("error create post request %v", err)
 		}
