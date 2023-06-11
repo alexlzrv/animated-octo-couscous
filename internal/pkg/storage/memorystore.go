@@ -139,12 +139,10 @@ func (m *MemoryStore) SaveMetrics(filePath string) error {
 	return encoder.Encode(&m.metrics)
 }
 
-func (m *MemoryStore) Close() error {
-	if m.tickerDone != nil {
-		m.tickerDone <- struct{}{}
-	}
+func (m *MemoryStore) Ping() error {
 	return nil
 }
-func (m *MemoryStore) Ping(_ context.Context) error {
+
+func (m *MemoryStore) Close() error {
 	return nil
 }

@@ -7,16 +7,40 @@ import (
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/compress"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/logger"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/server/config"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 )
 
 func StartListener(c *config.ServerConfig) {
-	metricStore, err := InitStore(c)
-	if err != nil {
-		logrus.Errorf("Eror init store: %v", err)
+	logrus.Info("Init store...")
+	logrus.Infof("ServerAddress: %v", c.ServerAddress)
+	logrus.Infof("StoreInterval: %v", c.StoreInterval)
+	logrus.Infof("Restore: %v", c.Restore)
+	logrus.Infof("FileStoragePath: %v", c.FileStoragePath)
+	logrus.Infof("DatabaseDSN: %v", c.DatabaseDSN)
+
+	var (
+		metricStore storage.Store
+		err         error
+	)
+
+	if c.DatabaseDSN != "" {
+		metricStore, err = storage.NewDBMetrics(c.DatabaseDSN)
+	} else if c.FileStoragePath != "" {
+		metricStore, err = storage.NewMetricsFile(c.FileStoragePath, time.Duration(c.StoreInterval)*time.Second)
+	} else {
+		metricStore = storage.NewMetrics()
 	}
+
+	if err != nil {
+		logrus.Fatalf("Error init store: %v", err)
+	}
+
+	defer metricStore.Close()
+
+	logrus.Info("Init store successfully")
 
 	mux := chi.NewRouter()
 	mux.Use(
@@ -49,6 +73,6 @@ func StartListener(c *config.ServerConfig) {
 	err = http.ListenAndServe(c.ServerAddress, mux)
 
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.Fatalf("Error with server running: %v", err)
 	}
 }

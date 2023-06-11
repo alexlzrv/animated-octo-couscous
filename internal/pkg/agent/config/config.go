@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"github.com/caarlos0/env/v6"
+	"github.com/sirupsen/logrus"
 )
 
 type AgentConfig struct {
@@ -16,7 +17,8 @@ func NewAgentConfig() *AgentConfig {
 	cfg.init()
 
 	if err := env.Parse(&cfg); err != nil {
-		return &AgentConfig{}
+		logrus.Fatalf("env parsing error: %v", err)
+		return nil
 	}
 	return &cfg
 }

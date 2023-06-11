@@ -8,15 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
 	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
-type StorageReport interface {
-	GetMetrics(ctx context.Context) (map[string]*metrics.Metrics, error)
-}
-
-func SendMetrics(ctx context.Context, s StorageReport, serverAddress string) error {
+func SendMetrics(ctx context.Context, s storage.Store, serverAddress string) error {
 	url := fmt.Sprintf("http://%s/update/", serverAddress)
 
 	metricMap, err := s.GetMetrics(ctx)
