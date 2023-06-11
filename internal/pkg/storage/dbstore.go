@@ -7,8 +7,6 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 	"github.com/sirupsen/logrus"
-	"log"
-	"time"
 )
 
 const (
@@ -20,51 +18,54 @@ type DBStore struct {
 }
 
 func NewDBMetrics(databaseDSN string) (*DBStore, error) {
-	var dbCon DBStore
+	logrus.Info("Try open connect db...")
 
 	db, err := sql.Open(driverName, databaseDSN)
 	if err != nil {
-		logrus.Error(err.Error())
 		return nil, err
 	}
-	defer db.Close()
+	logrus.Info("Open connect db successfully.")
 
-	dbCon = DBStore{
+	dbCon := &DBStore{
 		connection: db,
 	}
+
+	logrus.Info("Create database...")
+
 	err = dbCon.createDB()
 	if err != nil {
-		logrus.Errorf("Failed to create db: %v", err)
+		logrus.Errorf("Failed to create db %v", err)
 		return nil, err
 	}
+	logrus.Info("Create db successfully")
 
-	return &dbCon, nil
+	return dbCon, nil
 }
 
 func (db *DBStore) createDB() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	query := `
-		CREATE TABLE IF NOT EXISTS metrics(
-			id TEXT NOT NULL,
-			mtype TEXT NOT NULL,
-			delta BIGINT,
-			value DOUBLE PRECISION,
-			PRIMARY KEY(id, mtype)
-		);`
-
-	_, err := db.connection.ExecContext(ctx, query)
+	logrus.Info("Create db gauge...")
+	_, err := db.connection.Exec(`CREATE TABLE IF NOT EXISTS gauge(
+    									metric_id VARCHAR (50) PRIMARY KEY,
+    									metric_value DOUBLE PRECISION);`)
 	if err != nil {
 		return err
 	}
+	logrus.Info("Create db gauge successfully")
+
+	logrus.Info("Create db counter...")
+	_, err = db.connection.Exec(`CREATE TABLE IF NOT EXISTS counter(
+    									metric_id VARCHAR (50) PRIMARY KEY,
+    									metric_delta BIGINT);`)
+	if err != nil {
+		return err
+	}
+	logrus.Info("Create db counter successfully")
 
 	return nil
 }
 
 func (db *DBStore) UpdateCounterMetric(ctx context.Context, name string, value metrics.Counter) error {
 	var counter metrics.Counter
-
 	row := db.connection.QueryRowContext(ctx,
 		`SELECT metric_delta FROM counter WHERE metric_id = $1`, name)
 
@@ -85,8 +86,8 @@ func (db *DBStore) UpdateCounterMetric(ctx context.Context, name string, value m
 func (db *DBStore) ResetCounterMetric(ctx context.Context, name string) error {
 	var zero metrics.Counter
 	_, err := db.connection.ExecContext(ctx,
-		`INSERT INTO counter (metric_id, metric_delta) VALUES ($1, $2) 
-			ON CONFLICT (metric_id) DO UPDATE SET metric_delta = $2`,
+		`INSERT INTO counter (metric_id, metric_delta) VALUES ($1, $2)
+				ON CONFLICT (metric_id) DO UPDATE SET metric_delta = $2`,
 		name, zero)
 
 	return err
@@ -151,16 +152,16 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metrics,
 		return nil, err
 	}
 	defer func(rows *sql.Rows) {
-		err := rows.Close()
+		err = rows.Close()
 		if err != nil {
-			log.Printf("Couldn't close rows: %q", err)
+			logrus.Errorf("Couldn't close rows: %v", err)
 		}
 	}(counters)
 
 	for counters.Next() {
 		var counter metrics.Counter
 		metric := metrics.Metrics{
-			MType: metrics.CounterMetricName,
+			MType: metrics.GaugeMetricName,
 			Delta: &counter,
 		}
 		err = counters.Scan(&metric.ID, metric.Delta)
@@ -183,9 +184,9 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metrics,
 		return nil, err
 	}
 	defer func(rows *sql.Rows) {
-		err := rows.Close()
+		err = rows.Close()
 		if err != nil {
-			log.Printf("Couldn't close rows: %q", err)
+			logrus.Errorf("Couldn't close rows: %v", err)
 		}
 	}(gauges)
 
@@ -212,8 +213,13 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metrics,
 	return metricsMap, nil
 }
 
-func (db *DBStore) Ping(ctx context.Context) error {
-	return db.connection.PingContext(ctx)
+func (db *DBStore) Ping() error {
+	return db.connection.Ping()
+}
+
+func (db *DBStore) Close() error {
+	logrus.Info("Close database connection")
+	return db.connection.Close()
 }
 
 func (db *DBStore) LoadMetrics(_ string) error {

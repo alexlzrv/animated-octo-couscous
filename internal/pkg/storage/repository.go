@@ -11,7 +11,8 @@ type Store interface {
 	UpdateGaugeMetric(ctx context.Context, name string, value metrics.Gauge) error
 	GetMetric(ctx context.Context, name string, metricType string) (*metrics.Metrics, bool)
 	GetMetrics(ctx context.Context) (map[string]*metrics.Metrics, error)
-	Ping(ctx context.Context) error
+	Ping() error
 	LoadMetrics(filePath string) error
 	SaveMetrics(filePath string) error
+	Close() error
 }

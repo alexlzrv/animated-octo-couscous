@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
@@ -20,7 +19,7 @@ var tmpl = template.Must(template.New("index.html").Parse("html/index.gohtml"))
 const (
 	metricType     = "metricType"
 	metricName     = "metricName"
-	requestTimeout = 1 * time.Second
+	requestTimeout = 2 * time.Second
 )
 
 func RegisterHandlers(mux *chi.Mux, s storage.Store) {
@@ -47,16 +46,10 @@ func getMetricHandler(s storage.Store) func(r chi.Router) {
 func pingHandler(s storage.Store) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
-			defer requestCancel()
-
-			if err := s.Ping(requestContext); err != nil {
-				http.Error(
-					w,
-					fmt.Sprintf("Something went wrong during server ping: %q", err),
-					http.StatusInternalServerError,
-				)
+			if err := s.Ping(); err != nil {
+				w.WriteHeader(http.StatusNotImplemented)
 			}
+			w.WriteHeader(http.StatusOK)
 		})
 	}
 }
@@ -117,14 +110,25 @@ func updateMetricJSON(s storage.Store) func(w http.ResponseWriter, r *http.Reque
 
 		switch metric.MType {
 		case metrics.CounterMetricName:
+			if metric.Delta == nil {
+				http.Error(w, "Delta is required field", http.StatusBadRequest)
+			}
 			err = s.UpdateCounterMetric(requestContext, metric.ID, *metric.Delta)
+			if err != nil {
+				http.Error(w, metric.MType, http.StatusBadRequest)
+			}
+			w.WriteHeader(http.StatusOK)
 		case metrics.GaugeMetricName:
+			if metric.Value == nil {
+				http.Error(w, "Value is required field", http.StatusBadRequest)
+			}
 			err = s.UpdateGaugeMetric(requestContext, metric.ID, *metric.Value)
+			if err != nil {
+				http.Error(w, metric.MType, http.StatusBadRequest)
+			}
+			w.WriteHeader(http.StatusOK)
 		default:
 			http.Error(w, metric.MType, http.StatusNotImplemented)
-		}
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
 	}
 }
