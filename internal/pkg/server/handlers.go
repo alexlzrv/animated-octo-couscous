@@ -19,13 +19,14 @@ var tmpl = template.Must(template.New("index.html").Parse("html/index.gohtml"))
 const (
 	metricType     = "metricType"
 	metricName     = "metricName"
-	requestTimeout = 2 * time.Second
+	requestTimeout = 1 * time.Second
 )
 
 func RegisterHandlers(mux *chi.Mux, s storage.Store) {
 	mux.Route("/", getAllMetricsHandler(s))
 	mux.Route("/value/", getMetricHandler(s))
 	mux.Route("/update/", updateHandler(s))
+	mux.Route("/updates/", updatesBatchHandler(s))
 	mux.Route("/ping", pingHandler(s))
 }
 
@@ -71,12 +72,15 @@ func getMetricJSON(s storage.Store) func(w http.ResponseWriter, r *http.Request)
 		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer requestCancel()
 
+		logrus.Infof("Try get metric...%v %v", metric.ID, metric.MType)
+
 		m, ok := s.GetMetric(requestContext, metric.ID, metric.MType)
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			logrus.Errorf("Metric not found: %s", metric.ID)
 			return
 		}
+		logrus.Infof("Get metric: %v %v", m.ID, m.MType)
 
 		b, err := json.Marshal(m)
 		if err != nil {
@@ -85,10 +89,38 @@ func getMetricJSON(s storage.Store) func(w http.ResponseWriter, r *http.Request)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 		_, err = w.Write(b)
 		if err != nil {
 			logrus.Errorf("Cannot send request: %q", err)
 		}
+	}
+}
+
+func updatesBatchHandler(s storage.Store) func(r chi.Router) {
+	return func(r chi.Router) {
+		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+			var metricBatch []*metrics.Metrics
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				logrus.Errorf("Error: %s", err)
+			}
+
+			err = json.Unmarshal(body, &metricBatch)
+			if err != nil {
+				logrus.Infof("Cannot decode provided data: %s", err)
+				return
+			}
+
+			requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
+			defer requestCancel()
+
+			err = s.UpdateMetrics(requestContext, metricBatch)
+			if err != nil {
+				http.Error(w, "Failed to update metrics", http.StatusBadRequest)
+			}
+			w.WriteHeader(http.StatusOK)
+		})
 	}
 }
 
