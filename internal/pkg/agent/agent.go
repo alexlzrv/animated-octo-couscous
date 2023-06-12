@@ -36,6 +36,9 @@ func StartClient(ctx context.Context, c *config.AgentConfig) {
 				if err := SendMetrics(agentContext, metric, c.ServerAddress); err != nil {
 					logrus.Errorf("Error send metrics %v", err)
 				}
+				if err := SendMetricsBatch(agentContext, metric, c.ServerAddress); err != nil {
+					logrus.Errorf("Error send metrics batch %v", err)
+				}
 				if err := metric.ResetCounterMetric(agentContext, "PollCount"); err != nil {
 					logrus.Errorf("Error reset metrics %v", err)
 				}

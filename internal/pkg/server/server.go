@@ -46,6 +46,7 @@ func StartListener(c *config.ServerConfig) {
 	mux.Use(
 		middleware.Logger,
 		logger.LoggingMiddleware,
+		logger.HTTPRequestLogger(),
 		compress.CompressMiddleware,
 	)
 
