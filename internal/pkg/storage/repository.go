@@ -7,12 +7,17 @@ import (
 
 type Store interface {
 	UpdateCounterMetric(ctx context.Context, name string, value metrics.Counter) error
-	ResetCounterMetric(ctx context.Context, name string) error
 	UpdateGaugeMetric(ctx context.Context, name string, value metrics.Gauge) error
+	UpdateMetrics(ctx context.Context, metricBatch []*metrics.Metrics) error
+
+	ResetCounterMetric(ctx context.Context, name string) error
+
 	GetMetric(ctx context.Context, name string, metricType string) (*metrics.Metrics, bool)
 	GetMetrics(ctx context.Context) (map[string]*metrics.Metrics, error)
-	Ping() error
+
 	LoadMetrics(filePath string) error
 	SaveMetrics(filePath string) error
+
+	Ping() error
 	Close() error
 }

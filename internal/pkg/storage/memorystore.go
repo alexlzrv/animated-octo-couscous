@@ -36,6 +36,29 @@ func NewMetricsFile(file string, storeInterval time.Duration) (*MemoryStore, err
 	return &metricStore, nil
 }
 
+func (m *MemoryStore) UpdateMetrics(_ context.Context, metricBatch []*metrics.Metrics) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	for _, metric := range metricBatch {
+		currentMetric, ok := m.metrics[metric.ID]
+		switch {
+		case ok && metric.MType == metrics.GaugeMetricName && currentMetric.Value != nil:
+			currentMetric.Value = metric.Value
+		case ok && metric.MType == metrics.GaugeMetricName && currentMetric.Value == nil:
+			return fmt.Errorf("mismatch metric type %s:%s", metric.ID, currentMetric.MType)
+		case ok && metric.MType == metrics.CounterMetricName && currentMetric.Delta != nil:
+			*(currentMetric.Delta) += *(metric.Delta)
+		case ok && metric.MType == metrics.CounterMetricName && currentMetric.Delta == nil:
+			return fmt.Errorf("mismatch metric type %s:%s", metric.ID, currentMetric.MType)
+		default:
+			m.metrics[metric.ID] = metric
+		}
+	}
+
+	return nil
+}
+
 func (m *MemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, metricValue metrics.Gauge) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()

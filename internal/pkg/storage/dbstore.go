@@ -64,6 +64,90 @@ func (db *DBStore) createDB() error {
 	return nil
 }
 
+func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Metrics) error {
+	tx, err := db.connection.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	stateInsertGauge, err := tx.Prepare(`INSERT INTO gauge (metric_id, metric_value) VALUES ($1, $2)
+						ON CONFLICT (metric_id) DO UPDATE SET metric_value = $2`)
+	if err != nil {
+		logrus.Errorf("Error with insert gauge: %v", err)
+		return err
+	}
+	defer func(stateInsertGauge *sql.Stmt) {
+		err = stateInsertGauge.Close()
+		if err != nil {
+			logrus.Errorf("Failed to close insert statement: %v", err)
+		}
+	}(stateInsertGauge)
+
+	stateSelectCounter, err := tx.Prepare(`SELECT metric_delta FROM counter WHERE metric_id = $1`)
+	if err != nil {
+		logrus.Errorf("Error with select counter: %v", err)
+		return err
+	}
+	defer func(stateSelectCounter *sql.Stmt) {
+		err = stateSelectCounter.Close()
+		if err != nil {
+			logrus.Errorf("Failed to close select statement: %v", err)
+		}
+	}(stateSelectCounter)
+
+	stateInsertCounter, err := tx.Prepare(`INSERT INTO counter (metric_id, metric_delta) VALUES ($1, $2)
+						ON CONFLICT (metric_id) DO UPDATE SET metric_delta = $2`)
+	if err != nil {
+		logrus.Errorf("Error with insert counter: %v", err)
+		return err
+	}
+	defer func(stateInsertCounter *sql.Stmt) {
+		err = stateInsertCounter.Close()
+		if err != nil {
+			logrus.Errorf("Failed to close insert statement: %v", err)
+		}
+	}(stateInsertCounter)
+
+	for _, metric := range metricsBatch {
+		switch {
+		case metric.MType == metrics.GaugeMetricName:
+			if _, err = stateInsertGauge.Exec(metric.ID, *(metric.Value)); err != nil {
+				if err = tx.Rollback(); err != nil {
+					logrus.Errorf("enable rollback transaction: %v", err)
+					return err
+				}
+				logrus.Errorf("Error with update gauge: %v", err)
+				return err
+			}
+		case metric.MType == metrics.CounterMetricName:
+			var counter metrics.Counter
+			query := stateSelectCounter.QueryRow(metric.ID)
+			err = query.Scan(&counter)
+			if !errors.Is(err, nil) && !errors.Is(err, sql.ErrNoRows) {
+				if err = tx.Rollback(); err != nil {
+					logrus.Errorf("enable rollback transaction: %v", err)
+					return err
+				}
+				logrus.Errorf("Error with scan select counter: %v", err)
+				return err
+			}
+
+			counter += *(metric.Delta)
+
+			if _, err = stateInsertCounter.Exec(metric.ID, counter); err != nil {
+				if err = tx.Rollback(); err != nil {
+					logrus.Errorf("enable rollback transaction: %v", err)
+					return err
+				}
+				logrus.Errorf("Error with update counter: %v", err)
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
+}
+
 func (db *DBStore) UpdateCounterMetric(ctx context.Context, name string, value metrics.Counter) error {
 	var counter metrics.Counter
 	row := db.connection.QueryRowContext(ctx,
@@ -115,23 +199,20 @@ func (db *DBStore) GetMetric(ctx context.Context, name string, metricType string
 			`SELECT metric_delta FROM counter WHERE metric_id = $1`, name)
 
 		err := row.Scan(&counter)
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil, false
-		case !errors.Is(err, nil):
+		if err != nil {
+			logrus.Errorf("Error with get counter: %v", err)
 			return nil, false
 		}
 		metric.Delta = &counter
+
 	case metrics.GaugeMetricName:
 		var gauge metrics.Gauge
 		row := db.connection.QueryRowContext(ctx,
 			`SELECT metric_value FROM gauge WHERE metric_id = $1`, name)
 
 		err := row.Scan(&gauge)
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil, false
-		case !errors.Is(err, nil):
+		if err != nil {
+			logrus.Errorf("Error with get gauge: %v", err)
 			return nil, false
 		}
 		metric.Value = &gauge
