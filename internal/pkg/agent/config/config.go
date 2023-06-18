@@ -17,7 +17,7 @@ func NewAgentConfig() *AgentConfig {
 	cfg.init()
 
 	if err := env.Parse(&cfg); err != nil {
-		logrus.Fatalf("env parsing error: %v", err)
+		logrus.Errorf("env parsing error: %v", err)
 		return nil
 	}
 	return &cfg

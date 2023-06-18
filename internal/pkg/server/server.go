@@ -19,7 +19,6 @@ func StartListener(c *config.ServerConfig) {
 	logrus.Infof("StoreInterval: %v", c.StoreInterval)
 	logrus.Infof("Restore: %v", c.Restore)
 	logrus.Infof("FileStoragePath: %v", c.FileStoragePath)
-	logrus.Infof("DatabaseDSN: %v", c.DatabaseDSN)
 
 	var (
 		metricStore storage.Store
@@ -35,7 +34,8 @@ func StartListener(c *config.ServerConfig) {
 	}
 
 	if err != nil {
-		logrus.Fatalf("Error init store: %v", err)
+		logrus.Errorf("Error init store: %v", err)
+		return
 	}
 
 	defer metricStore.Close()
@@ -75,5 +75,6 @@ func StartListener(c *config.ServerConfig) {
 
 	if err != nil {
 		logrus.Fatalf("Error with server running: %v", err)
+		return
 	}
 }
