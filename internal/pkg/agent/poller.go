@@ -13,126 +13,47 @@ import (
 func UpdateMetrics(ctx context.Context, m storage.Store) error {
 	var metricsStats runtime.MemStats
 	runtime.ReadMemStats(&metricsStats)
+
+	gaugeMetricsMap := make(map[string]metrics.Gauge)
+	gaugeMetricsMap["Alloc"] = metrics.Gauge(metricsStats.Alloc)
+	gaugeMetricsMap["BuckHashSys"] = metrics.Gauge(metricsStats.BuckHashSys)
+	gaugeMetricsMap["Frees"] = metrics.Gauge(metricsStats.Frees)
+	gaugeMetricsMap["GCCPUFraction"] = metrics.Gauge(metricsStats.GCCPUFraction)
+	gaugeMetricsMap["GCSys"] = metrics.Gauge(metricsStats.GCSys)
+	gaugeMetricsMap["HeapAlloc"] = metrics.Gauge(metricsStats.HeapAlloc)
+	gaugeMetricsMap["HeapIdle"] = metrics.Gauge(metricsStats.HeapIdle)
+	gaugeMetricsMap["HeapInuse"] = metrics.Gauge(metricsStats.HeapInuse)
+	gaugeMetricsMap["HeapObjects"] = metrics.Gauge(metricsStats.HeapObjects)
+	gaugeMetricsMap["HeapReleased"] = metrics.Gauge(metricsStats.HeapReleased)
+	gaugeMetricsMap["HeapSys"] = metrics.Gauge(metricsStats.HeapSys)
+	gaugeMetricsMap["Lookups"] = metrics.Gauge(metricsStats.Lookups)
+	gaugeMetricsMap["MCacheInuse"] = metrics.Gauge(metricsStats.MCacheInuse)
+	gaugeMetricsMap["MCacheSys"] = metrics.Gauge(metricsStats.MCacheSys)
+	gaugeMetricsMap["MSpanInuse"] = metrics.Gauge(metricsStats.MSpanInuse)
+	gaugeMetricsMap["MSpanSys"] = metrics.Gauge(metricsStats.MSpanSys)
+	gaugeMetricsMap["Mallocs"] = metrics.Gauge(metricsStats.Mallocs)
+	gaugeMetricsMap["NextGC"] = metrics.Gauge(metricsStats.NextGC)
+	gaugeMetricsMap["LastGC"] = metrics.Gauge(metricsStats.LastGC)
+	gaugeMetricsMap["NumForcedGC"] = metrics.Gauge(metricsStats.NumForcedGC)
+	gaugeMetricsMap["NumGC"] = metrics.Gauge(metricsStats.NumGC)
+	gaugeMetricsMap["OtherSys"] = metrics.Gauge(metricsStats.OtherSys)
+	gaugeMetricsMap["PauseTotalNs"] = metrics.Gauge(metricsStats.PauseTotalNs)
+	gaugeMetricsMap["StackInuse"] = metrics.Gauge(metricsStats.StackInuse)
+	gaugeMetricsMap["StackSys"] = metrics.Gauge(metricsStats.StackSys)
+	gaugeMetricsMap["Sys"] = metrics.Gauge(metricsStats.Sys)
+	gaugeMetricsMap["TotalAlloc"] = metrics.Gauge(metricsStats.TotalAlloc)
+	gaugeMetricsMap["RandomValue"] = metrics.Gauge(rand.Float64())
+
 	var errorsSlice []string
 
-	err := m.UpdateGaugeMetric(ctx, "Alloc", metrics.Gauge(metricsStats.Alloc))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "BuckHashSys", metrics.Gauge(metricsStats.BuckHashSys))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "BuckHashSys", metrics.Gauge(metricsStats.BuckHashSys))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "Frees", metrics.Gauge(metricsStats.Frees))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "GCCPUFraction", metrics.Gauge(metricsStats.GCCPUFraction))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "GCSys", metrics.Gauge(metricsStats.GCSys))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "HeapAlloc", metrics.Gauge(metricsStats.HeapAlloc))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "HeapIdle", metrics.Gauge(metricsStats.HeapIdle))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "HeapInuse", metrics.Gauge(metricsStats.HeapInuse))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "HeapObjects", metrics.Gauge(metricsStats.HeapObjects))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "HeapReleased", metrics.Gauge(metricsStats.HeapReleased))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "HeapSys", metrics.Gauge(metricsStats.HeapSys))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "LastGC", metrics.Gauge(metricsStats.LastGC))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "Lookups", metrics.Gauge(metricsStats.Lookups))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "MCacheInuse", metrics.Gauge(metricsStats.MCacheInuse))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "MCacheSys", metrics.Gauge(metricsStats.MCacheSys))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "MSpanInuse", metrics.Gauge(metricsStats.MSpanInuse))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "MSpanSys", metrics.Gauge(metricsStats.MSpanSys))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "Mallocs", metrics.Gauge(metricsStats.Mallocs))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "NextGC", metrics.Gauge(metricsStats.NextGC))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "NumForcedGC", metrics.Gauge(metricsStats.NumForcedGC))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "NumGC", metrics.Gauge(metricsStats.NumGC))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "OtherSys", metrics.Gauge(metricsStats.OtherSys))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "PauseTotalNs", metrics.Gauge(metricsStats.PauseTotalNs))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "StackInuse", metrics.Gauge(metricsStats.StackInuse))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "StackSys", metrics.Gauge(metricsStats.StackSys))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "Sys", metrics.Gauge(metricsStats.Sys))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "TotalAlloc", metrics.Gauge(metricsStats.TotalAlloc))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
-	}
-	err = m.UpdateGaugeMetric(ctx, "RandomValue", metrics.Gauge(rand.Float64()))
-	if err != nil {
-		errorsSlice = append(errorsSlice, err.Error())
+	for k, v := range gaugeMetricsMap {
+		err := m.UpdateGaugeMetric(ctx, k, v)
+		if err != nil {
+			errorsSlice = append(errorsSlice, err.Error())
+		}
 	}
 
-	err = m.UpdateCounterMetric(ctx, "PollCount", 1)
+	err := m.UpdateCounterMetric(ctx, "PollCount", 1)
 	if err != nil {
 		errorsSlice = append(errorsSlice, err.Error())
 	}

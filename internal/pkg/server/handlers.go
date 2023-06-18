@@ -48,7 +48,7 @@ func pingHandler(s storage.Store) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			if err := s.Ping(); err != nil {
-				w.WriteHeader(http.StatusNotImplemented)
+				w.WriteHeader(http.StatusInternalServerError)
 			}
 			w.WriteHeader(http.StatusOK)
 		})
@@ -72,15 +72,12 @@ func getMetricJSON(s storage.Store) func(w http.ResponseWriter, r *http.Request)
 		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer requestCancel()
 
-		logrus.Infof("Try get metric...%v %v", metric.ID, metric.MType)
-
 		m, ok := s.GetMetric(requestContext, metric.ID, metric.MType)
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			logrus.Errorf("Metric not found: %s", metric.ID)
 			return
 		}
-		logrus.Infof("Get metric: %v %v", m.ID, m.MType)
 
 		b, err := json.Marshal(m)
 		if err != nil {

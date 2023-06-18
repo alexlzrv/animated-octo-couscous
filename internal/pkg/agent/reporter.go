@@ -15,14 +15,13 @@ import (
 )
 
 func SendMetrics(ctx context.Context, s storage.Store, serverAddress string) error {
-	getContext, getCancel := context.WithTimeout(ctx, time.Duration(1)*time.Second)
-	defer getCancel()
+	getContext, cancelCtx := context.WithTimeout(ctx, time.Duration(5)*time.Second)
+	defer cancelCtx()
 
 	url := fmt.Sprintf("http://%s/update/", serverAddress)
 
 	metricMap, err := s.GetMetrics(getContext)
 	if err != nil {
-		logrus.Errorf("Error with get metrics: %v", err)
 		return err
 	}
 
@@ -72,8 +71,8 @@ func createPostRequest(url string, metric *metrics.Metrics) error {
 }
 
 func SendMetricsBatch(ctx context.Context, s storage.Store, serverAddress string) error {
-	getContext, getCancel := context.WithTimeout(ctx, time.Duration(1)*time.Second)
-	defer getCancel()
+	getContext, cancelCtx := context.WithTimeout(ctx, time.Duration(5)*time.Second)
+	defer cancelCtx()
 
 	metricsMap, err := s.GetMetrics(getContext)
 	if err != nil {
@@ -124,7 +123,7 @@ func sendBatchJSON(url string, metricsBatch []*metrics.Metrics) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return errors.New("status code not 200")
+		return fmt.Errorf("status code: %v and not 200", resp.StatusCode)
 	}
 
 	return nil

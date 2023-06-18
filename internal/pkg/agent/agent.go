@@ -24,7 +24,7 @@ func StartClient(ctx context.Context, c *config.AgentConfig) {
 	metric := storage.NewMetrics()
 
 	agentContext, cancelCtx := context.WithCancel(ctx)
-
+	defer cancelCtx()
 	go func() {
 		for {
 			select {
@@ -45,7 +45,6 @@ func StartClient(ctx context.Context, c *config.AgentConfig) {
 			}
 		}
 	}()
-	cancelCtx()
 	signalChanel := make(chan os.Signal, 1)
 	signal.Notify(signalChanel, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChanel
