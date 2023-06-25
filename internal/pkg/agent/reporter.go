@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func SendMetrics(ctx context.Context, s storage.Store, serverAddress string) error {
+func SendMetrics(ctx context.Context, s storage.Store, serverAddress string, signKey string) error {
 	getContext, cancelCtx := context.WithTimeout(ctx, time.Duration(5)*time.Second)
 	defer cancelCtx()
 
@@ -26,7 +26,7 @@ func SendMetrics(ctx context.Context, s storage.Store, serverAddress string) err
 	}
 
 	for _, v := range metricMap {
-		err = createPostRequest(url, v)
+		err = createPostRequest(url, v, signKey)
 		if err != nil {
 			return fmt.Errorf("error create post request %v", err)
 		}
@@ -34,7 +34,9 @@ func SendMetrics(ctx context.Context, s storage.Store, serverAddress string) err
 	return nil
 }
 
-func createPostRequest(url string, metric *metrics.Metrics) error {
+func createPostRequest(url string, metric *metrics.Metrics, signKey string) error {
+	metric.SetHash(signKey)
+
 	body, err := json.Marshal(metric)
 	if err != nil {
 		return fmt.Errorf("error encoding metric %v", err)

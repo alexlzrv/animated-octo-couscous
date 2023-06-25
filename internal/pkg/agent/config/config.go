@@ -8,8 +8,9 @@ import (
 
 type AgentConfig struct {
 	ServerAddress  string `env:"ADDRESS"`
-	ReportInterval int    `env:"REPORT_INTERVAL"` //тесты не проходят с duration
-	PollInterval   int    `env:"POLL_INTERVAL"`   //тесты не проходят с duration
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
+	SignKey        string `env:"KEY"`
 }
 
 func NewAgentConfig() *AgentConfig {
@@ -27,5 +28,6 @@ func (c *AgentConfig) init() {
 	flag.StringVar(&c.ServerAddress, "a", "localhost:8080", "Start server address (default - :8080)")
 	flag.IntVar(&c.ReportInterval, "r", 10, "Interval of report metric")
 	flag.IntVar(&c.PollInterval, "p", 2, "Interval of poll metric")
+	flag.StringVar(&c.SignKey, "k", "", "Server key")
 	flag.Parse()
 }

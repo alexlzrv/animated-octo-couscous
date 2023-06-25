@@ -12,6 +12,7 @@ type ServerConfig struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
+	SignKey         string `env:"KEY"`
 }
 
 const (
@@ -37,5 +38,6 @@ func (c *ServerConfig) Init() {
 	flag.StringVar(&c.FileStoragePath, "f", filePathDefault, "File storage path")
 	flag.BoolVar(&c.Restore, "r", true, "Restore")
 	flag.StringVar(&c.DatabaseDSN, "d", "", "Connect database string")
+	flag.StringVar(&c.SignKey, "k", "", "Server key")
 	flag.Parse()
 }

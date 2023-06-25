@@ -33,7 +33,7 @@ func StartClient(ctx context.Context, c *config.AgentConfig) {
 					logrus.Errorf("Error update metrics %v", err)
 				}
 			case <-reportTicker.C:
-				if err := SendMetrics(agentContext, metric, c.ServerAddress); err != nil {
+				if err := SendMetrics(agentContext, metric, c.ServerAddress, c.SignKey); err != nil {
 					logrus.Errorf("Error send metrics %v", err)
 				}
 				if err := SendMetricsBatch(agentContext, metric, c.ServerAddress); err != nil {

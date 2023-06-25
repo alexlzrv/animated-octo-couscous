@@ -50,7 +50,7 @@ func StartListener(c *config.ServerConfig) {
 		compress.CompressMiddleware,
 	)
 
-	RegisterHandlers(mux, metricStore)
+	RegisterHandlers(mux, metricStore, c.SignKey)
 
 	if c.Restore {
 		if err = metricStore.LoadMetrics(c.FileStoragePath); err != nil {
