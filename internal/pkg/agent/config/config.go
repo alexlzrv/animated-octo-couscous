@@ -11,6 +11,7 @@ type AgentConfig struct {
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	SignKey        string `env:"KEY"`
+	RateLimit      int    `env:"RATE_LIMIT"`
 }
 
 func NewAgentConfig() *AgentConfig {
@@ -29,5 +30,6 @@ func (c *AgentConfig) init() {
 	flag.IntVar(&c.ReportInterval, "r", 10, "Interval of report metric")
 	flag.IntVar(&c.PollInterval, "p", 2, "Interval of poll metric")
 	flag.StringVar(&c.SignKey, "k", "", "Server key")
+	flag.IntVar(&c.RateLimit, "l", 3, "Rate limit")
 	flag.Parse()
 }
