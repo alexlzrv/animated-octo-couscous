@@ -2,43 +2,41 @@ package agent
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/agent/config"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
 	"github.com/sirupsen/logrus"
-	"os/signal"
-	"sync"
-	"syscall"
 )
 
 func StartClient(ctx context.Context, c *config.AgentConfig) {
 	logrus.Info("Agent is running...")
-	ctx, stop := signal.NotifyContext(ctx,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-	defer stop()
-	wg := sync.WaitGroup{}
+	wg := &sync.WaitGroup{}
 
 	metric := storage.NewMetrics()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		RunUpdateMemStatMetrics(ctx, c, metric)
-	}()
+	pollerInterval := time.Duration(c.PollInterval) * time.Second
+	pollerTicker := time.NewTicker(pollerInterval)
+	defer pollerTicker.Stop()
+
+	reportInterval := time.Duration(c.ReportInterval) * time.Second
+	reportTicker := time.NewTicker(reportInterval)
+	defer reportTicker.Stop()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		RunUpdateVirtualMetrics(ctx, c, metric)
+		RunUpdateMemStatMetrics(ctx, pollerTicker, metric)
 	}()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		RunSendMetric(ctx, c, metric)
-	}()
+	for i := 1; i < c.RateLimit; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			RunSendMetric(ctx, reportTicker, c, metric)
+		}()
+	}
 
 	wg.Wait()
 }

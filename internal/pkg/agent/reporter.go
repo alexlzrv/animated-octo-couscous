@@ -4,35 +4,32 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/agent/config"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"time"
 )
 
-func RunSendMetric(ctx context.Context, c *config.AgentConfig, s storage.Store) {
-	reportInterval := time.Duration(c.ReportInterval) * time.Second //тесты не проходят с duration
-	reportTicker := time.NewTicker(reportInterval)
-	defer reportTicker.Stop()
-
+func RunSendMetric(ctx context.Context, reportTicker *time.Ticker, c *config.AgentConfig, s storage.Store) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-reportTicker.C:
-			for i := 1; i < c.RateLimit; i++ {
-				if err := SendMetrics(ctx, s, c.ServerAddress, c.SignKey); err != nil {
-					logrus.Errorf("Error send metrics %v", err)
-				}
-				if err := SendMetricsBatch(ctx, s, c.ServerAddress); err != nil {
-					logrus.Errorf("Error send metrics batch %v", err)
-				}
-				if err := s.ResetCounterMetric(ctx, "PollCount"); err != nil {
+			ok, err := sendMetrics(ctx, s, c.ServerAddress, c.SignKeyByte)
+			if err != nil {
+				logrus.Errorf("Error send metrics %v", err)
+			}
+			if ok {
+				if err = s.ResetCounterMetric(ctx, "PollCount"); err != nil {
 					logrus.Errorf("Error reset metrics %v", err)
 				}
 			}
@@ -40,72 +37,11 @@ func RunSendMetric(ctx context.Context, c *config.AgentConfig, s storage.Store) 
 	}
 }
 
-func SendMetrics(ctx context.Context, s storage.Store, serverAddress string, signKey string) error {
-	getContext, cancelCtx := context.WithTimeout(ctx, time.Duration(5)*time.Second)
-	defer cancelCtx()
-
-	url := fmt.Sprintf("http://%s/update/", serverAddress)
-
-	metricMap, err := s.GetMetrics(getContext)
-	if err != nil {
-		return err
-	}
-
-	for _, v := range metricMap {
-		err = createPostRequest(url, v, signKey)
-		if err != nil {
-			return fmt.Errorf("error create post request %v", err)
-		}
-	}
-	return nil
-}
-
-func createPostRequest(url string, metric *metrics.Metrics, signKey string) error {
-	metric.SetHash(signKey)
-
-	body, err := json.Marshal(metric)
-	if err != nil {
-		return fmt.Errorf("error encoding metric %v", err)
-	}
-
-	var buf bytes.Buffer
-	gz := gzip.NewWriter(&buf)
-	if _, err = gz.Write(body); err != nil {
-		return fmt.Errorf("error %s", err)
-	}
-
-	gz.Close()
-
-	req, err := http.NewRequest(http.MethodPost, url, &buf)
-	if err != nil {
-		return fmt.Errorf("error send request %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Encoding", "gzip")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("error client %v", err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return errors.New("status code not 200")
-	}
-
-	return nil
-}
-
-func SendMetricsBatch(ctx context.Context, s storage.Store, serverAddress string) error {
-	getContext, cancelCtx := context.WithTimeout(ctx, time.Duration(5)*time.Second)
-	defer cancelCtx()
-
-	metricsMap, err := s.GetMetrics(getContext)
+func sendMetrics(ctx context.Context, s storage.Store, serverAddress string, signKey []byte) (bool, error) {
+	metricsMap, err := s.GetMetrics(ctx)
 	if err != nil {
 		logrus.Errorf("Some error ocured during metrics get: %q", err)
-		return err
+		return false, err
 	}
 
 	metricsBatch := make([]*metrics.Metrics, 0)
@@ -115,13 +51,13 @@ func SendMetricsBatch(ctx context.Context, s storage.Store, serverAddress string
 
 	url := fmt.Sprintf("http://%s/updates/", serverAddress)
 
-	if err = sendBatchJSON(url, metricsBatch); err != nil {
-		return fmt.Errorf("error create post request %v", err)
+	if err = sendBatchJSON(url, metricsBatch, signKey); err != nil {
+		return false, fmt.Errorf("error create post request %v", err)
 	}
-	return nil
+	return true, nil
 }
 
-func sendBatchJSON(url string, metricsBatch []*metrics.Metrics) error {
+func sendBatchJSON(url string, metricsBatch []*metrics.Metrics, signKey []byte) error {
 	body, err := json.Marshal(metricsBatch)
 	if err != nil {
 		return fmt.Errorf("error encoding metric %v", err)
@@ -142,6 +78,13 @@ func sendBatchJSON(url string, metricsBatch []*metrics.Metrics) error {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
+
+	if signKey != nil {
+		h := hmac.New(sha256.New, signKey)
+		h.Write(body)
+		serverHash := hex.EncodeToString(h.Sum(nil))
+		req.Header.Set("HashSHA256", serverHash)
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

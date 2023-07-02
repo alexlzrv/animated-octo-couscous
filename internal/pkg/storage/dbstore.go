@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 	"github.com/sirupsen/logrus"
-	"strings"
 )
 
 const (

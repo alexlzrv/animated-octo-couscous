@@ -13,6 +13,7 @@ type ServerConfig struct {
 	Restore         bool   `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	SignKey         string `env:"KEY"`
+	SignKeyByte     []byte
 }
 
 const (
@@ -24,6 +25,10 @@ const (
 func NewServerConfig() *ServerConfig {
 	cfg := ServerConfig{}
 	cfg.Init()
+
+	if cfg.SignKey != "" {
+		cfg.SignKeyByte = []byte(cfg.SignKey)
+	}
 
 	if err := env.Parse(&cfg); err != nil {
 		logrus.Errorf("env parsing error: %v", err)

@@ -1,16 +1,17 @@
 package server
 
 import (
+	"context"
+	"net/http"
+	"sync"
+	"time"
+
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/compress"
-	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/logger"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/middleware"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/server/config"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"time"
 )
 
 func StartListener(c *config.ServerConfig) {
@@ -42,15 +43,21 @@ func StartListener(c *config.ServerConfig) {
 
 	logrus.Info("Init store successfully")
 
-	mux := chi.NewRouter()
-	mux.Use(
-		middleware.Logger,
-		logger.LoggingMiddleware,
-		logger.HTTPRequestLogger(),
-		compress.CompressMiddleware,
+	var (
+		mux = chi.NewRouter()
+		srv = &http.Server{
+			Addr:    c.ServerAddress,
+			Handler: mux,
+		}
 	)
 
-	RegisterHandlers(mux, metricStore, c.SignKey)
+	mux.Use(
+		middleware.LoggingMiddleware,
+		middleware.CryptMiddleware(c.SignKeyByte),
+		middleware.CompressMiddleware,
+	)
+
+	RegisterHandlers(mux, metricStore)
 
 	if c.Restore {
 		if err = metricStore.LoadMetrics(c.FileStoragePath); err != nil {
@@ -69,12 +76,22 @@ func StartListener(c *config.ServerConfig) {
 			}
 		}()
 	}
+	wg := &sync.WaitGroup{}
 
-	logrus.Info("Server is running...")
-	err = http.ListenAndServe(c.ServerAddress, mux)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logrus.Info("Server is running...")
+		if err = srv.ListenAndServe(); err != nil {
+			logrus.Fatalf("Error with server running: %v", err)
+		}
 
-	if err != nil {
-		logrus.Fatalf("Error with server running: %v", err)
+	}()
+
+	if err = srv.Shutdown(context.Background()); err != nil {
+		logrus.Errorf("server shutdown %v", err)
 		return
 	}
+
+	wg.Wait()
 }

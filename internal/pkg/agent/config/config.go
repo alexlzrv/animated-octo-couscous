@@ -10,13 +10,18 @@ type AgentConfig struct {
 	ServerAddress  string `env:"ADDRESS"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
-	SignKey        string `env:"KEY"`
 	RateLimit      int    `env:"RATE_LIMIT"`
+	SignKey        string `env:"KEY"`
+	SignKeyByte    []byte
 }
 
 func NewAgentConfig() *AgentConfig {
 	cfg := AgentConfig{}
 	cfg.init()
+
+	if cfg.SignKey != "" {
+		cfg.SignKeyByte = []byte(cfg.SignKey)
+	}
 
 	if err := env.Parse(&cfg); err != nil {
 		logrus.Errorf("env parsing error: %v", err)
