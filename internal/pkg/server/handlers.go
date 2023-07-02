@@ -22,24 +22,24 @@ const (
 	requestTimeout = 1 * time.Second
 )
 
-func RegisterHandlers(mux *chi.Mux, s storage.Store, signKey string) {
+func RegisterHandlers(mux *chi.Mux, s storage.Store) {
 	mux.Route("/", getAllMetricsHandler(s))
-	mux.Route("/value/", getMetricHandler(s, signKey))
-	mux.Route("/update/", updateHandler(s, signKey))
+	mux.Route("/value/", getMetricHandler(s))
+	mux.Route("/update/", updateHandler(s))
 	mux.Route("/updates/", updatesBatchHandler(s))
 	mux.Route("/ping", pingHandler(s))
 }
 
-func updateHandler(s storage.Store, signKey string) func(r chi.Router) {
+func updateHandler(s storage.Store) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Post("/", updateMetricJSON(s, signKey))
+		r.Post("/", updateMetricJSON(s))
 		r.Post("/{metricType}/{metricName}/{metricValue}", updateMetricHandler(s))
 	}
 }
 
-func getMetricHandler(s storage.Store, signKey string) func(r chi.Router) {
+func getMetricHandler(s storage.Store) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Post("/", getMetricJSON(s, signKey))
+		r.Post("/", getMetricJSON(s))
 		r.Get("/{metricType}/{metricName}", getMetric(s))
 	}
 }
@@ -55,7 +55,7 @@ func pingHandler(s storage.Store) func(r chi.Router) {
 	}
 }
 
-func getMetricJSON(s storage.Store, signKey string) func(w http.ResponseWriter, r *http.Request) {
+func getMetricJSON(s storage.Store) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var metric *metrics.Metrics
 		body, err := io.ReadAll(r.Body)
@@ -78,8 +78,6 @@ func getMetricJSON(s storage.Store, signKey string) func(w http.ResponseWriter, 
 			logrus.Errorf("Metric not found: %s", metric.ID)
 			return
 		}
-
-		m.SetHash(signKey)
 
 		b, err := json.Marshal(m)
 		if err != nil {
@@ -123,7 +121,7 @@ func updatesBatchHandler(s storage.Store) func(r chi.Router) {
 	}
 }
 
-func updateMetricJSON(s storage.Store, signKey string) func(w http.ResponseWriter, r *http.Request) {
+func updateMetricJSON(s storage.Store) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer requestCancel()
@@ -137,15 +135,6 @@ func updateMetricJSON(s storage.Store, signKey string) func(w http.ResponseWrite
 		if err != nil {
 			logrus.Infof("Cannot decode provided data: %s, %s", metric.ID, err)
 			return
-		}
-
-		hash := r.Header.Get("HashSHA256")
-		if hash == "" {
-			w.WriteHeader(http.StatusOK)
-		}
-
-		if !metric.ValidateHash(signKey) {
-			http.Error(w, "Invalid hash metric", http.StatusBadRequest)
 		}
 
 		switch metric.MType {
