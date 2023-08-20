@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 )
 
 type MemoryStore struct {

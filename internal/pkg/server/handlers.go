@@ -3,15 +3,16 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-chi/chi/v5"
-	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
-	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
-	"github.com/sirupsen/logrus"
 	"html/template"
 	"io"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
+	"github.com/sirupsen/logrus"
 )
 
 var tmpl = template.Must(template.New("index.html").Parse("html/index.gohtml"))
