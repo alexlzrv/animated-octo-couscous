@@ -24,7 +24,7 @@ func RunSendMetric(ctx context.Context, reportTicker *time.Ticker, c *config.Age
 		case <-ctx.Done():
 			return
 		case <-reportTicker.C:
-			ok, err := sendMetrics(ctx, s, c.ServerAddress, c.SignKeyByte)
+			ok, err := SendMetrics(ctx, s, c.ServerAddress, c.SignKeyByte)
 			if err != nil {
 				logrus.Errorf("Error send metrics %v", err)
 			}
@@ -37,7 +37,7 @@ func RunSendMetric(ctx context.Context, reportTicker *time.Ticker, c *config.Age
 	}
 }
 
-func sendMetrics(ctx context.Context, s storage.Store, serverAddress string, signKey []byte) (bool, error) {
+func SendMetrics(ctx context.Context, s storage.Store, serverAddress string, signKey []byte) (bool, error) {
 	metricsMap, err := s.GetMetrics(ctx)
 	if err != nil {
 		logrus.Errorf("Some error ocured during metrics get: %q", err)
@@ -51,13 +51,13 @@ func sendMetrics(ctx context.Context, s storage.Store, serverAddress string, sig
 
 	url := fmt.Sprintf("http://%s/updates/", serverAddress)
 
-	if err = sendBatchJSON(url, metricsBatch, signKey); err != nil {
+	if err = SendBatchJSON(url, metricsBatch, signKey); err != nil {
 		return false, fmt.Errorf("error create post request %v", err)
 	}
 	return true, nil
 }
 
-func sendBatchJSON(url string, metricsBatch []*metrics.Metrics, signKey []byte) error {
+func SendBatchJSON(url string, metricsBatch []*metrics.Metrics, signKey []byte) error {
 	body, err := json.Marshal(metricsBatch)
 	if err != nil {
 		return fmt.Errorf("error encoding metric %v", err)

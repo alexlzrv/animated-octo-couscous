@@ -25,27 +25,27 @@ const (
 
 func RegisterHandlers(mux *chi.Mux, s storage.Store) {
 	mux.Route("/", getAllMetricsHandler(s))
-	mux.Route("/value/", getMetricHandler(s))
-	mux.Route("/update/", updateHandler(s))
-	mux.Route("/updates/", updatesBatchHandler(s))
-	mux.Route("/ping", pingHandler(s))
+	mux.Route("/value/", GetMetricHandler(s))
+	mux.Route("/update/", UpdateHandler(s))
+	mux.Route("/updates/", UpdatesBatchHandler(s))
+	mux.Route("/ping", PingHandler(s))
 }
 
-func updateHandler(s storage.Store) func(r chi.Router) {
+func UpdateHandler(s storage.Store) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/", updateMetricJSON(s))
 		r.Post("/{metricType}/{metricName}/{metricValue}", updateMetricHandler(s))
 	}
 }
 
-func getMetricHandler(s storage.Store) func(r chi.Router) {
+func GetMetricHandler(s storage.Store) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/", getMetricJSON(s))
 		r.Get("/{metricType}/{metricName}", getMetric(s))
 	}
 }
 
-func pingHandler(s storage.Store) func(r chi.Router) {
+func PingHandler(s storage.Store) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			if err := s.Ping(); err != nil {
@@ -95,7 +95,7 @@ func getMetricJSON(s storage.Store) func(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func updatesBatchHandler(s storage.Store) func(r chi.Router) {
+func UpdatesBatchHandler(s storage.Store) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 			var metricBatch []*metrics.Metrics
