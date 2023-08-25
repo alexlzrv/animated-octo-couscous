@@ -2,11 +2,19 @@ package main
 
 import (
 	"context"
+	"log"
 	"os/signal"
 	"syscall"
 
+	"github.com/mayr0y/animated-octo-couscous.git/internal/greetings"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/agent"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/agent/config"
+)
+
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
 )
 
 func main() {
@@ -16,6 +24,10 @@ func main() {
 		syscall.SIGQUIT,
 	)
 	defer stop()
+
+	if err := greetings.Hello(buildVersion, buildDate, buildCommit); err != nil {
+		log.Fatal(err)
+	}
 
 	cfg := config.NewAgentConfig()
 	agent.StartClient(ctx, cfg)
