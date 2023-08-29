@@ -15,7 +15,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func RunUpdateMemStatMetrics(ctx context.Context, pollerTicker *time.Ticker, s storage.Store) {
+const (
+	PollCount = "PollCount"
+)
+
+func runUpdateMemStatMetrics(ctx context.Context, pollerTicker *time.Ticker, s storage.Store) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -64,12 +68,12 @@ func UpdateMetrics(ctx context.Context, m storage.Store) error {
 
 	vm, err := mem.VirtualMemory()
 	if err != nil {
-		return err
+		return fmt.Errorf("error with virtualMemory %w", err)
 	}
 
 	cpuMetric, err := cpu.Percent(time.Duration(1)*time.Second, true)
 	if err != nil {
-		return err
+		return fmt.Errorf("error with cpu %w", err)
 	}
 
 	gaugeMetricsMap["TotalMemory"] = metrics.Gauge(vm.Total)
@@ -85,7 +89,7 @@ func UpdateMetrics(ctx context.Context, m storage.Store) error {
 		}
 	}
 
-	err = m.UpdateCounterMetric(ctx, "PollCount", 1)
+	err = m.UpdateCounterMetric(ctx, PollCount, 1)
 	if err != nil {
 		errorsSlice = append(errorsSlice, err.Error())
 	}

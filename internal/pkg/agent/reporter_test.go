@@ -25,7 +25,10 @@ func TestSendReport(t *testing.T) {
 	secretKey := []byte("secret")
 	mtr := storage.NewMetrics()
 
-	agent.UpdateMetrics(context.Background(), mtr)
+	err := agent.UpdateMetrics(context.Background(), mtr)
+	if err != nil {
+		t.Errorf("error with update metrics in test %s", err)
+	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		tokens := strings.FieldsFunc(req.URL.Path, func(c rune) bool {

@@ -10,7 +10,10 @@ import (
 
 func TestPoolWorker(t *testing.T) {
 	mtr := storage.NewMetrics()
-	agent.UpdateMetrics(context.Background(), mtr)
+	err := agent.UpdateMetrics(context.Background(), mtr)
+	if err != nil {
+		t.Errorf("error with update metrics in test %s", err)
+	}
 
 	counterMetric, _ := mtr.GetMetric(context.Background(), "PollCount", "")
 	if *counterMetric.Delta != 1 {

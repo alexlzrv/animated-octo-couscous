@@ -9,11 +9,11 @@ import (
 
 type ServerConfig struct {
 	ServerAddress   string `env:"ADDRESS"`
-	StoreInterval   int    `env:"STORE_INTERVAL"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH"`
-	Restore         bool   `env:"RESTORE"`
-	DatabaseDSN     string `env:"DATABASE_DSN"`
 	SignKey         string `env:"KEY"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
+	StoreInterval   int    `env:"STORE_INTERVAL"`
+	Restore         bool   `env:"RESTORE"`
 	SignKeyByte     []byte
 }
 
@@ -25,7 +25,7 @@ const (
 
 func NewServerConfig() *ServerConfig {
 	cfg := ServerConfig{}
-	cfg.Init()
+	cfg.init()
 
 	if cfg.SignKey != "" {
 		cfg.SignKeyByte = []byte(cfg.SignKey)
@@ -38,7 +38,7 @@ func NewServerConfig() *ServerConfig {
 	return &cfg
 }
 
-func (c *ServerConfig) Init() {
+func (c *ServerConfig) init() {
 	flag.StringVar(&c.ServerAddress, "a", serverAddressDefault, "Listen server address (default - :8080)")
 	flag.IntVar(&c.StoreInterval, "i", storeIntervalDefault, "Store interval")
 	flag.StringVar(&c.FileStoragePath, "f", filePathDefault, "File storage path")

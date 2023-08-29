@@ -19,7 +19,6 @@ func CryptMiddleware(signKey []byte) func(handler http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
