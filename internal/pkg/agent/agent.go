@@ -27,7 +27,7 @@ func StartClient(ctx context.Context, c *config.AgentConfig) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		RunUpdateMemStatMetrics(ctx, pollerTicker, metric)
+		runUpdateMemStatMetrics(ctx, pollerTicker, metric)
 	}()
 
 	for i := 1; i < c.RateLimit; i++ {

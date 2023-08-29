@@ -17,8 +17,8 @@ type Counter int64
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
-	Delta *Counter `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *Gauge   `json:"value,omitempty"` // значение метрики в случае передачи gauge
+	Delta *Counter `json:"delta,omitempty"` // значение метрики в случае передачи counter
 }
 
 func (m *Metrics) EncodeMetric() (*bytes.Buffer, error) {
@@ -26,7 +26,7 @@ func (m *Metrics) EncodeMetric() (*bytes.Buffer, error) {
 	jsonEncoder := json.NewEncoder(&buf)
 
 	if err := jsonEncoder.Encode(m); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error encode %w", err)
 	}
 
 	return &buf, nil

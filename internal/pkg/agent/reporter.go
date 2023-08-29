@@ -52,7 +52,7 @@ func SendMetrics(ctx context.Context, s storage.Store, serverAddress string, sig
 	url := fmt.Sprintf("http://%s/updates/", serverAddress)
 
 	if err = SendBatchJSON(url, metricsBatch, signKey); err != nil {
-		return false, fmt.Errorf("error create post request %v", err)
+		return false, fmt.Errorf("error create post request %w", err)
 	}
 	return true, nil
 }
@@ -60,20 +60,23 @@ func SendMetrics(ctx context.Context, s storage.Store, serverAddress string, sig
 func SendBatchJSON(url string, metricsBatch []*metrics.Metrics, signKey []byte) error {
 	body, err := json.Marshal(metricsBatch)
 	if err != nil {
-		return fmt.Errorf("error encoding metric %v", err)
+		return fmt.Errorf("error encoding metric %w", err)
 	}
 
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	if _, err = gz.Write(body); err != nil {
-		return fmt.Errorf("error %s", err)
+		return fmt.Errorf("error %w", err)
 	}
 
-	gz.Close()
+	err = gz.Close()
+	if err != nil {
+		return fmt.Errorf("error close %w", err)
+	}
 
 	req, err := http.NewRequest(http.MethodPost, url, &buf)
 	if err != nil {
-		return fmt.Errorf("error send request %v", err)
+		return fmt.Errorf("error send request %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -88,7 +91,7 @@ func SendBatchJSON(url string, metricsBatch []*metrics.Metrics, signKey []byte) 
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error client %v", err)
+		return fmt.Errorf("error client %w", err)
 	}
 
 	defer resp.Body.Close()
