@@ -54,7 +54,6 @@ func StartListener(c *config.ServerConfig) {
 	mux.Use(
 		middleware.LoggingMiddleware,
 		middleware.CryptMiddleware(c.SignKeyByte),
-		middleware.CompressMiddleware,
 	)
 
 	RegisterHandlers(mux, metricStore)

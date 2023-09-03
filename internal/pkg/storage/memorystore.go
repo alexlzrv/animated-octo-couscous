@@ -5,15 +5,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 )
 
 type MemoryStore struct {
-	metrics         map[string]*metrics.Metrics
-	fileStoragePath string
+	Metrics         map[string]*metrics.Metrics
+	FileStoragePath string
 	storeInterval   time.Duration
 	tickerDone      chan struct{}
 	lock            sync.Mutex
@@ -22,14 +23,14 @@ type MemoryStore struct {
 
 func NewMetrics() *MemoryStore {
 	return &MemoryStore{
-		metrics: make(map[string]*metrics.Metrics),
+		Metrics: make(map[string]*metrics.Metrics),
 	}
 }
 
 func NewMetricsFile(file string, storeInterval time.Duration) (*MemoryStore, error) {
 	metricStore := MemoryStore{
-		metrics:         make(map[string]*metrics.Metrics),
-		fileStoragePath: file,
+		Metrics:         make(map[string]*metrics.Metrics),
+		FileStoragePath: file,
 		storeInterval:   storeInterval,
 	}
 
@@ -41,7 +42,7 @@ func (m *MemoryStore) UpdateMetrics(_ context.Context, metricBatch []*metrics.Me
 	defer m.lock.Unlock()
 
 	for _, metric := range metricBatch {
-		currentMetric, ok := m.metrics[metric.ID]
+		currentMetric, ok := m.Metrics[metric.ID]
 		switch {
 		case ok && metric.MType == metrics.GaugeMetricName && currentMetric.Value != nil:
 			currentMetric.Value = metric.Value
@@ -52,7 +53,7 @@ func (m *MemoryStore) UpdateMetrics(_ context.Context, metricBatch []*metrics.Me
 		case ok && metric.MType == metrics.CounterMetricName && currentMetric.Delta == nil:
 			return fmt.Errorf("mismatch metric type %s:%s", metric.ID, currentMetric.MType)
 		default:
-			m.metrics[metric.ID] = metric
+			m.Metrics[metric.ID] = metric
 		}
 	}
 
@@ -62,7 +63,7 @@ func (m *MemoryStore) UpdateMetrics(_ context.Context, metricBatch []*metrics.Me
 func (m *MemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, metricValue metrics.Gauge) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	currentMetric, ok := m.metrics[metricName]
+	currentMetric, ok := m.Metrics[metricName]
 
 	switch {
 	case ok && currentMetric.Value != nil:
@@ -70,7 +71,7 @@ func (m *MemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, me
 	case ok && currentMetric.Value == nil:
 		return fmt.Errorf("mismatch metric type %s:%s", metricName, currentMetric.MType)
 	default:
-		m.metrics[metricName] = &metrics.Metrics{
+		m.Metrics[metricName] = &metrics.Metrics{
 			ID:    metricName,
 			MType: metrics.GaugeMetricName,
 			Value: &metricValue,
@@ -82,7 +83,7 @@ func (m *MemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, me
 func (m *MemoryStore) UpdateCounterMetric(_ context.Context, metricName string, metricValue metrics.Counter) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	currentMetric, ok := m.metrics[metricName]
+	currentMetric, ok := m.Metrics[metricName]
 
 	switch {
 	case ok && currentMetric.Delta != nil:
@@ -90,7 +91,7 @@ func (m *MemoryStore) UpdateCounterMetric(_ context.Context, metricName string, 
 	case ok && currentMetric.Delta == nil:
 		return fmt.Errorf("mismatch metric type %s:%s", metricName, currentMetric.MType)
 	default:
-		m.metrics[metricName] = &metrics.Metrics{
+		m.Metrics[metricName] = &metrics.Metrics{
 			ID:    metricName,
 			MType: metrics.CounterMetricName,
 			Delta: &metricValue,
@@ -101,13 +102,13 @@ func (m *MemoryStore) UpdateCounterMetric(_ context.Context, metricName string, 
 }
 
 func (m *MemoryStore) GetMetric(_ context.Context, metricName string, _ string) (*metrics.Metrics, bool) {
-	metric, ok := m.metrics[metricName]
+	metric, ok := m.Metrics[metricName]
 
 	return metric, ok
 }
 
 func (m *MemoryStore) GetMetrics(_ context.Context) (map[string]*metrics.Metrics, error) {
-	return m.metrics, nil
+	return m.Metrics, nil
 }
 
 func (m *MemoryStore) ResetCounterMetric(_ context.Context, metricName string) error {
@@ -115,14 +116,14 @@ func (m *MemoryStore) ResetCounterMetric(_ context.Context, metricName string) e
 	defer m.lock.Unlock()
 
 	var zero metrics.Counter
-	currentMetric, ok := m.metrics[metricName]
+	currentMetric, ok := m.Metrics[metricName]
 	switch {
 	case ok && currentMetric.Delta != nil:
 		*(currentMetric.Delta) = zero
 	case ok && currentMetric.Delta == nil:
 		return fmt.Errorf("mismatch metric type %s:%s", metricName, currentMetric.MType)
 	default:
-		m.metrics[metricName] = &metrics.Metrics{
+		m.Metrics[metricName] = &metrics.Metrics{
 			ID:    metricName,
 			MType: metrics.CounterMetricName,
 			Delta: &zero,
@@ -145,7 +146,7 @@ func (m *MemoryStore) LoadMetrics(filePath string) error {
 	defer file.Close()
 
 	jsonDecoder := json.NewDecoder(file)
-	return jsonDecoder.Decode(&m.metrics)
+	return jsonDecoder.Decode(&m.Metrics)
 }
 
 func (m *MemoryStore) SaveMetrics(filePath string) error {
@@ -159,7 +160,7 @@ func (m *MemoryStore) SaveMetrics(filePath string) error {
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
-	return encoder.Encode(&m.metrics)
+	return encoder.Encode(&m.Metrics)
 }
 
 func (m *MemoryStore) Ping() error {

@@ -2,18 +2,26 @@ package config
 
 import (
 	"flag"
+
 	"github.com/caarlos0/env/v6"
 	"github.com/sirupsen/logrus"
 )
 
 type AgentConfig struct {
 	ServerAddress  string `env:"ADDRESS"`
+	SignKey        string `env:"KEY"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	RateLimit      int    `env:"RATE_LIMIT"`
-	SignKey        string `env:"KEY"`
 	SignKeyByte    []byte
 }
+
+const (
+	serverAddressDefault  = "localhost:8080"
+	reportIntervalDefault = 10
+	pollIntervalDefault   = 2
+	rateLimitDefault      = 3
+)
 
 func NewAgentConfig() *AgentConfig {
 	cfg := AgentConfig{}
@@ -31,10 +39,10 @@ func NewAgentConfig() *AgentConfig {
 }
 
 func (c *AgentConfig) init() {
-	flag.StringVar(&c.ServerAddress, "a", "localhost:8080", "Start server address (default - :8080)")
-	flag.IntVar(&c.ReportInterval, "r", 10, "Interval of report metric")
-	flag.IntVar(&c.PollInterval, "p", 2, "Interval of poll metric")
+	flag.StringVar(&c.ServerAddress, "a", serverAddressDefault, "Start server address (default - :8080)")
+	flag.IntVar(&c.ReportInterval, "r", reportIntervalDefault, "Interval of report metric")
+	flag.IntVar(&c.PollInterval, "p", pollIntervalDefault, "Interval of poll metric")
 	flag.StringVar(&c.SignKey, "k", "", "Server key")
-	flag.IntVar(&c.RateLimit, "l", 3, "Rate limit")
+	flag.IntVar(&c.RateLimit, "l", rateLimitDefault, "Rate limit")
 	flag.Parse()
 }

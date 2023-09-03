@@ -1,8 +1,9 @@
 package server
 
 import (
-	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/server/config"
 	"testing"
+
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/server/config"
 )
 
 func TestStartListener(t *testing.T) {

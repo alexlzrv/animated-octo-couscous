@@ -24,7 +24,7 @@ func RunSendMetric(ctx context.Context, reportTicker *time.Ticker, c *config.Age
 		case <-ctx.Done():
 			return
 		case <-reportTicker.C:
-			ok, err := sendMetrics(ctx, s, c.ServerAddress, c.SignKeyByte)
+			ok, err := SendMetrics(ctx, s, c.ServerAddress, c.SignKeyByte)
 			if err != nil {
 				logrus.Errorf("Error send metrics %v", err)
 			}
@@ -37,7 +37,7 @@ func RunSendMetric(ctx context.Context, reportTicker *time.Ticker, c *config.Age
 	}
 }
 
-func sendMetrics(ctx context.Context, s storage.Store, serverAddress string, signKey []byte) (bool, error) {
+func SendMetrics(ctx context.Context, s storage.Store, serverAddress string, signKey []byte) (bool, error) {
 	metricsMap, err := s.GetMetrics(ctx)
 	if err != nil {
 		logrus.Errorf("Some error ocured during metrics get: %q", err)
@@ -51,29 +51,32 @@ func sendMetrics(ctx context.Context, s storage.Store, serverAddress string, sig
 
 	url := fmt.Sprintf("http://%s/updates/", serverAddress)
 
-	if err = sendBatchJSON(url, metricsBatch, signKey); err != nil {
-		return false, fmt.Errorf("error create post request %v", err)
+	if err = SendBatchJSON(url, metricsBatch, signKey); err != nil {
+		return false, fmt.Errorf("error create post request %w", err)
 	}
 	return true, nil
 }
 
-func sendBatchJSON(url string, metricsBatch []*metrics.Metrics, signKey []byte) error {
+func SendBatchJSON(url string, metricsBatch []*metrics.Metrics, signKey []byte) error {
 	body, err := json.Marshal(metricsBatch)
 	if err != nil {
-		return fmt.Errorf("error encoding metric %v", err)
+		return fmt.Errorf("error encoding metric %w", err)
 	}
 
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	if _, err = gz.Write(body); err != nil {
-		return fmt.Errorf("error %s", err)
+		return fmt.Errorf("error %w", err)
 	}
 
-	gz.Close()
+	err = gz.Close()
+	if err != nil {
+		return fmt.Errorf("error close %w", err)
+	}
 
 	req, err := http.NewRequest(http.MethodPost, url, &buf)
 	if err != nil {
-		return fmt.Errorf("error send request %v", err)
+		return fmt.Errorf("error send request %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -88,7 +91,7 @@ func sendBatchJSON(url string, metricsBatch []*metrics.Metrics, signKey []byte) 
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error client %v", err)
+		return fmt.Errorf("error client %w", err)
 	}
 
 	defer resp.Body.Close()
