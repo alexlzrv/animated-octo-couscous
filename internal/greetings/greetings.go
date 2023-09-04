@@ -17,6 +17,8 @@ type Greetings struct {
 	BuildCommit  string
 }
 
+var tmpl = template.Must(template.New("greetings").Parse(greetingsTemplate))
+
 func Hello(buildVersion, buildDate, buildCommit string) error {
 	greetings := Greetings{
 		BuildVersion: buildVersion,
@@ -33,8 +35,6 @@ func Hello(buildVersion, buildDate, buildCommit string) error {
 	if greetings.BuildCommit == "" {
 		greetings.BuildCommit = "N/A"
 	}
-
-	tmpl := template.Must(template.New("greetings").Parse(greetingsTemplate))
 
 	return tmpl.Execute(os.Stdout, greetings)
 }
