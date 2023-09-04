@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	os.Exit(1) // want `call to os.Exit\(\) in main`
+	os.Exit(1)
 }
