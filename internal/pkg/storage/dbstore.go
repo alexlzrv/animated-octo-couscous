@@ -20,6 +20,10 @@ type DBStore struct {
 	connection *sql.DB
 }
 
+func NewDBStore(db *sql.DB) *DBStore {
+	return &DBStore{connection: db}
+}
+
 func NewDBMetrics(databaseDSN string) (*DBStore, error) {
 	db, err := sql.Open(driverName, databaseDSN)
 	if err != nil {
