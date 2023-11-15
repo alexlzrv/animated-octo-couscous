@@ -23,6 +23,7 @@ const (
 
 func TestSendReport(t *testing.T) {
 	secretKey := []byte("secret")
+	publicKey := ""
 	mtr := storage.NewMetrics()
 
 	err := agent.UpdateMetrics(context.Background(), mtr)
@@ -70,5 +71,5 @@ func TestSendReport(t *testing.T) {
 	}))
 	defer server.Close()
 
-	agent.SendMetrics(context.Background(), mtr, server.URL, secretKey)
+	agent.SendMetrics(context.Background(), mtr, server.URL, secretKey, publicKey)
 }
