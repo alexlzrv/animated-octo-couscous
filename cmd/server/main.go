@@ -19,6 +19,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cfg := config.NewServerConfig()
+	cfg, err := config.NewServerConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 	server.StartListener(cfg)
 }

@@ -29,6 +29,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cfg := config.NewAgentConfig()
+	cfg, err := config.NewAgentConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 	agent.StartClient(ctx, cfg)
 }
