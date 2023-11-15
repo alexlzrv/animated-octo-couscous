@@ -14,6 +14,7 @@ type ServerConfig struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	StoreInterval   int    `env:"STORE_INTERVAL"`
 	Restore         bool   `env:"RESTORE"`
+	PrivateKey      string `env:"CRYPTO_KEY"`
 	SignKeyByte     []byte
 }
 
@@ -45,5 +46,6 @@ func (c *ServerConfig) init() {
 	flag.BoolVar(&c.Restore, "r", true, "Restore")
 	flag.StringVar(&c.DatabaseDSN, "d", "", "Connect database string")
 	flag.StringVar(&c.SignKey, "k", "", "Server key")
+	flag.StringVar(&c.PrivateKey, "-crypto-key", "", "Private key path")
 	flag.Parse()
 }

@@ -13,6 +13,7 @@ type AgentConfig struct {
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	RateLimit      int    `env:"RATE_LIMIT"`
+	PublicKey      string `env:"CRYPTO_KEY"`
 	SignKeyByte    []byte
 }
 
@@ -44,5 +45,6 @@ func (c *AgentConfig) init() {
 	flag.IntVar(&c.PollInterval, "p", pollIntervalDefault, "Interval of poll metric")
 	flag.StringVar(&c.SignKey, "k", "", "Server key")
 	flag.IntVar(&c.RateLimit, "l", rateLimitDefault, "Rate limit")
+	flag.StringVar(&c.PublicKey, "-crypto-key", "", "Public key path")
 	flag.Parse()
 }
