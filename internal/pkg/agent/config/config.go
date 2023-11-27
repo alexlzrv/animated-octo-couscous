@@ -1,7 +1,10 @@
 package config
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"flag"
 	"os"
 
@@ -15,7 +18,8 @@ type AgentConfig struct {
 	ReportInterval int    `env:"REPORT_INTERVAL" json:"report_interval"`
 	PollInterval   int    `env:"POLL_INTERVAL" json:"poll_interval"`
 	RateLimit      int    `env:"RATE_LIMIT"`
-	PublicKey      string `env:"CRYPTO_KEY" json:"crypto_key"`
+	PublicKeyPath  string `env:"CRYPTO_KEY" json:"crypto_key"`
+	PublicKey      *rsa.PublicKey
 	ConfigPath     string `env:"CONFIG"`
 	SignKeyByte    []byte
 }
@@ -35,6 +39,11 @@ func NewAgentConfig() (*AgentConfig, error) {
 		cfg.SignKeyByte = []byte(cfg.SignKey)
 	}
 
+	if err := env.Parse(&cfg); err != nil {
+		logrus.Errorf("env parsing error: %v", err)
+		return nil, err
+	}
+
 	if cfg.ConfigPath != "" {
 		cfgJSON, err := readConfigFile(cfg.ConfigPath)
 		if err != nil {
@@ -42,10 +51,14 @@ func NewAgentConfig() (*AgentConfig, error) {
 		}
 	}
 
-	if err := env.Parse(&cfg); err != nil {
-		logrus.Errorf("env parsing error: %v", err)
-		return nil, err
+	if cfg.PublicKeyPath != "" {
+		publicKey, err := cfg.getPublicKey()
+		if err != nil {
+			logrus.Errorf("error with get public key: %v", err)
+		}
+		cfg.PublicKey = publicKey
 	}
+
 	return &cfg, nil
 }
 
@@ -55,7 +68,7 @@ func (c *AgentConfig) init() {
 	flag.IntVar(&c.PollInterval, "p", pollIntervalDefault, "Interval of poll metric")
 	flag.StringVar(&c.SignKey, "k", "", "Server key")
 	flag.IntVar(&c.RateLimit, "l", rateLimitDefault, "Rate limit")
-	flag.StringVar(&c.PublicKey, "-crypto-key", "", "Public key path")
+	flag.StringVar(&c.PublicKeyPath, "-crypto-key", "", "Public key path")
 	flag.StringVar(&c.ConfigPath, "c", "", "Path to config file")
 	flag.StringVar(&c.ConfigPath, "config", "", "Path to config file (the same as -c)")
 	flag.Parse()
@@ -73,4 +86,23 @@ func readConfigFile(path string) (cfg *AgentConfig, err error) {
 	}
 
 	return cfg, nil
+}
+
+func (c *AgentConfig) getPublicKey() (*rsa.PublicKey, error) {
+	publicKeyPEM, err := os.ReadFile(c.PublicKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	publicKeyBlock, _ := pem.Decode(publicKeyPEM)
+	if publicKeyBlock == nil {
+		return nil, err
+	}
+
+	publicKey, err := x509.ParsePKCS1PublicKey(publicKeyBlock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return publicKey, nil
 }

@@ -54,8 +54,15 @@ func StartListener(c *config.ServerConfig) {
 	mux.Use(
 		middleware.LoggingMiddleware,
 		middleware.CryptMiddleware(c.SignKeyByte),
-		middleware.DecryptMiddleware(c.PrivateKey),
 	)
+
+	if c.PrivateKey != "" {
+		privateKey, err := c.GetPrivateKey()
+		if err != nil {
+			logrus.Errorf("Error get private key: %v", err)
+		}
+		mux.Use(middleware.DecryptMiddleware(privateKey))
+	}
 
 	RegisterHandlers(mux, metricStore)
 
@@ -64,6 +71,7 @@ func StartListener(c *config.ServerConfig) {
 			logrus.Errorf("Error update metric from file %v", err)
 		}
 	}
+
 	if c.StoreInterval > 0 {
 		storeInterval := time.NewTicker(time.Duration(c.StoreInterval) * time.Second)
 		defer storeInterval.Stop()
@@ -76,8 +84,8 @@ func StartListener(c *config.ServerConfig) {
 			}
 		}()
 	}
-	wg := &sync.WaitGroup{}
 
+	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
 		defer wg.Done()

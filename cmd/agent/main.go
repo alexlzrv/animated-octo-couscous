@@ -33,5 +33,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	agent.StartClient(ctx, cfg)
 }

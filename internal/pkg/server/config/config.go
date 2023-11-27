@@ -1,7 +1,10 @@
 package config
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"flag"
 	"os"
 
@@ -35,16 +38,16 @@ func NewServerConfig() (*ServerConfig, error) {
 		cfg.SignKeyByte = []byte(cfg.SignKey)
 	}
 
+	if err := env.Parse(&cfg); err != nil {
+		logrus.Errorf("env parsing error: %v", err)
+		return nil, err
+	}
+
 	if cfg.ConfigPath != "" {
 		cfgJSON, err := readConfigFile(cfg.ConfigPath)
 		if err != nil {
 			return cfgJSON, err
 		}
-	}
-
-	if err := env.Parse(&cfg); err != nil {
-		logrus.Errorf("env parsing error: %v", err)
-		return nil, err
 	}
 	return &cfg, nil
 }
@@ -74,4 +77,19 @@ func readConfigFile(path string) (cfg *ServerConfig, err error) {
 	}
 
 	return cfg, nil
+}
+
+func (c *ServerConfig) GetPrivateKey() (*rsa.PrivateKey, error) {
+	privateKeyPEM, err := os.ReadFile(c.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKeyBlock, _ := pem.Decode(privateKeyPEM)
+	privateKey, err := x509.ParsePKCS1PrivateKey(privateKeyBlock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return privateKey, nil
 }

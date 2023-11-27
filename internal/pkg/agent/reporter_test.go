@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/agent"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/agent/config"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/metrics"
 	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/storage"
 )
@@ -22,8 +23,7 @@ const (
 )
 
 func TestSendReport(t *testing.T) {
-	secretKey := []byte("secret")
-	publicKey := ""
+	c, _ := config.NewAgentConfig()
 	mtr := storage.NewMetrics()
 
 	err := agent.UpdateMetrics(context.Background(), mtr)
@@ -71,5 +71,5 @@ func TestSendReport(t *testing.T) {
 	}))
 	defer server.Close()
 
-	agent.SendMetrics(context.Background(), mtr, server.URL, secretKey, publicKey)
+	agent.SendMetrics(context.Background(), mtr, c)
 }
