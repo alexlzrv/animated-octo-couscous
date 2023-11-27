@@ -24,7 +24,7 @@ func RunSendMetric(ctx context.Context, reportTicker *time.Ticker, c *config.Age
 		case <-ctx.Done():
 			return
 		case <-reportTicker.C:
-			ok, err := SendMetrics(ctx, s, c.ServerAddress, c.SignKeyByte, c.PublicKey)
+			ok, err := SendMetrics(ctx, s, c)
 			if err != nil {
 				logrus.Errorf("Error send metrics %v", err)
 			}
@@ -37,7 +37,7 @@ func RunSendMetric(ctx context.Context, reportTicker *time.Ticker, c *config.Age
 	}
 }
 
-func SendMetrics(ctx context.Context, s storage.Store, serverAddress string, signKey []byte, publicKey string) (bool, error) {
+func SendMetrics(ctx context.Context, s storage.Store, c *config.AgentConfig) (bool, error) {
 	metricsMap, err := s.GetMetrics(ctx)
 	if err != nil {
 		logrus.Errorf("Some error ocured during metrics get: %q", err)
@@ -49,22 +49,22 @@ func SendMetrics(ctx context.Context, s storage.Store, serverAddress string, sig
 		metricsBatch = append(metricsBatch, v)
 	}
 
-	url := fmt.Sprintf("http://%s/updates/", serverAddress)
+	url := fmt.Sprintf("http://%s/updates/", c.ServerAddress)
 
-	if err = SendBatchJSON(url, metricsBatch, signKey, publicKey); err != nil {
+	if err = SendBatchJSON(url, metricsBatch, c); err != nil {
 		return false, fmt.Errorf("error create post request %w", err)
 	}
 	return true, nil
 }
 
-func SendBatchJSON(url string, metricsBatch []*metrics.Metrics, signKey []byte, publicKey string) error {
+func SendBatchJSON(url string, metricsBatch []*metrics.Metrics, c *config.AgentConfig) error {
 	body, err := json.Marshal(metricsBatch)
 	if err != nil {
 		return fmt.Errorf("error encoding metric %w", err)
 	}
 
-	if publicKey != "" {
-		body, err = encrypt(publicKey, body)
+	if c.PublicKeyPath != "" {
+		body, err = encrypt(c.PublicKey, body)
 		if err != nil {
 			return err
 		}
@@ -89,8 +89,8 @@ func SendBatchJSON(url string, metricsBatch []*metrics.Metrics, signKey []byte, 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 
-	if signKey != nil {
-		h := hmac.New(sha256.New, signKey)
+	if c.SignKeyByte != nil {
+		h := hmac.New(sha256.New, c.SignKeyByte)
 		h.Write(body)
 		serverHash := hex.EncodeToString(h.Sum(nil))
 		req.Header.Set("HashSHA256", serverHash)

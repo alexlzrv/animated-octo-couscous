@@ -6,12 +6,9 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/hex"
-	"encoding/pem"
 	"io"
 	"net/http"
-	"os"
 )
 
 func CryptMiddleware(signKey []byte) func(handler http.Handler) http.Handler {
@@ -58,32 +55,16 @@ func CryptMiddleware(signKey []byte) func(handler http.Handler) http.Handler {
 	}
 }
 
-func DecryptMiddleware(privateKeyPath string) func(http.Handler) http.Handler {
+func DecryptMiddleware(key *rsa.PrivateKey) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if privateKeyPath == "" {
-				return
-			}
-
-			privateKeyPEM, err := os.ReadFile(privateKeyPath)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			privateKeyBlock, _ := pem.Decode(privateKeyPEM)
-			privateKey, err := x509.ParsePKCS1PrivateKey(privateKeyBlock.Bytes)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
-			plaintext, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, body)
+			plaintext, err := rsa.DecryptPKCS1v15(rand.Reader, key, body)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
