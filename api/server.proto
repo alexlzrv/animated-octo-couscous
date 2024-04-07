@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package server;
+
+option go_package = "./server";
+
+message Metric {
+    string ID = 1;
+    string MType = 2;
+    float Value = 3;
+    int64 Delta = 4;
+}
+
+message UpdateMetricRequest {
+    Metric metric = 1;
+}
+
+message UpdateMetricResponse {
+    string error = 1;
+}
+
+service Metrics {
+    rpc UpdateMetrics (stream UpdateMetricRequest) returns (UpdateMetricResponse) {}
+}

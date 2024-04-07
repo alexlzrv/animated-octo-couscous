@@ -22,6 +22,7 @@ type ServerConfig struct {
 	PrivateKey      string `env:"CRYPTO_KEY" json:"crypto_key"`
 	ConfigPath      string `env:"CONFIG"`
 	SignKeyByte     []byte
+	GRPCAddress     string `yaml:"address" env:"GRPC_ADDRESS"`
 }
 
 const (

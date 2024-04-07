@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/mayr0y/animated-octo-couscous.git/internal/greetings"
@@ -23,5 +24,5 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	server.StartListener(cfg)
+	server.StartListener(context.Background(), cfg)
 }

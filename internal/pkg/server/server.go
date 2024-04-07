@@ -2,8 +2,11 @@ package server
 
 import (
 	"context"
+	"github.com/mayr0y/animated-octo-couscous.git/internal/pkg/server/grpc"
 	"net/http"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -14,12 +17,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func StartListener(c *config.ServerConfig) {
+func StartListener(parent context.Context, c *config.ServerConfig) {
 	logrus.Info("Init store...")
 	logrus.Infof("ServerAddress: %v", c.ServerAddress)
 	logrus.Infof("StoreInterval: %v", c.StoreInterval)
 	logrus.Infof("Restore: %v", c.Restore)
 	logrus.Infof("FileStoragePath: %v", c.FileStoragePath)
+
+	ctx, stop := signal.NotifyContext(parent,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+	defer stop()
 
 	var (
 		metricStore storage.Store
@@ -48,6 +58,9 @@ func StartListener(c *config.ServerConfig) {
 		srv = &http.Server{
 			Addr:    c.ServerAddress,
 			Handler: mux,
+		}
+		grpcSrv = grpc.Server{
+			Address: c.GRPCAddress,
 		}
 	)
 
@@ -96,7 +109,15 @@ func StartListener(c *config.ServerConfig) {
 
 	}()
 
-	if err = srv.Shutdown(context.Background()); err != nil {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := grpcSrv.Start(ctx, metricStore); err != nil {
+			logrus.Fatalf("error on listen and serve GRPC server: %s", err)
+		}
+	}()
+
+	if err = srv.Shutdown(ctx); err != nil {
 		logrus.Errorf("server shutdown %v", err)
 		return
 	}
