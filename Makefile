@@ -26,4 +26,8 @@ _golangci-lint-rm-unformatted-report: _golangci-lint-format-report
 
 .PHONY: golangci-lint-clean
 golangci-lint-clean:
-	sudo rm -rf ./golangci-lint 
+	sudo rm -rf ./golangci-lint
+
+.PHONY: proto
+proto:
+	protoc -I ./api  --go_out ./api/server --go_opt paths=source_relative --go-grpc_out ./api/server --go-grpc_opt paths=source_relative ./api/server.proto
